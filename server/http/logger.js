@@ -10,6 +10,7 @@ const ALLOWED_FIELDS = [
   'model',
   'mode',
   'metaSource',
+  'gradeCode',
 ]
 
 function write(stream, level, event, fields = {}) {

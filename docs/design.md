@@ -79,7 +79,7 @@ A teacher uploads a school file and writes a short prompt ("Teach this to 7th gr
 ┌───────────────────────────────▼──── Vercel function (Express) ──────────────┐
 │  http/   routes, apiKey middleware, error mapping, SSE writer, logger       │
 │   │                                                                         │
-│  ai/     prompts (plan, tutor, grade, transcribe) · meta splitter/parser ·         │
+│  ai/     prompts (plan, tutor, grade, transcribe) · meta splitter/parser ·  │
 │          plan validator · gemini.js (ONLY file that imports @google/genai)  │
 └───────────────────────────────┬─────────────────────────────────────────────┘
                                 ▼
@@ -313,7 +313,7 @@ data: {}
 
 Errors after the stream started: `event: error` + `data: {"code":"RATE_LIMITED","message":"…","retryAfterSeconds":20}`. Errors before the stream starts: normal JSON error response with an HTTP status.
 
-**Meta splitter (server, pure, TDD):** feeds chunks; emits text but always holds back the last `len('<<<META>>>') - 1` characters until it knows they are not the start of the marker; after the marker, buffers the rest as raw meta. On end: returns `{ metaRaw | null }`. Parser: `JSON.parse` (tolerate code fences/whitespace), validate enum, keep only passage IDs that belong to the current step. **Fallback grader:** if the stream ends normally but the block is missing or invalid, `grade.js` builds one structured-output call (step objective, check question, passages, the student's latest message and the reply just sent, with the tutor's own `understanding` definition); its answer goes through the same validation. If it fails or the client has left, the turn ends with no meta.
+**Meta splitter (server, pure, TDD):** feeds chunks; emits text but always holds back the last `len('<<<META>>>') - 1` characters until it knows they are not the start of the marker; after the marker, buffers the rest as raw meta. On end: returns `{ metaRaw | null }`. Parser: `JSON.parse` (tolerate code fences/whitespace), validate enum, keep only passage IDs that belong to the current step. **Fallback grader:** if the stream ends normally but the block is missing or invalid, `grade.js` builds one structured-output call (step objective, check question, passages, the student's latest message and the reply just sent, with the tutor's own `understanding` definition); its answer goes through the same validation. If it fails or the client has left, the turn ends with no meta The grader also sees the tutor message the student was answering, so an answer to an easier follow-up or hint question counts as `none`; it is given 10 seconds.
 
 **Stop:** the Stop button calls `AbortController.abort()` on the fetch. The server listens to `res.on('close')` before the response finished and aborts its own controller, which is passed to the SDK as `config.abortSignal`, so we stop reading from Gemini. Note (SDK docs): aborting is client-side; Google may finish and bill the generation. The message keeps its partial text with state `stopped` and the composer is enabled again. Whether Vercel propagates the client disconnect to Express is verified in the deploy-early task.
 

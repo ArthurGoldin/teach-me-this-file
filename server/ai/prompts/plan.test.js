@@ -110,8 +110,14 @@ describe('buildPlanRequest', () => {
       'never to repeat a fact or sentence the tutor has just taught',
     )
     expect(systemInstruction).toContain(
-      'good: "Why does a wet T-shirt dry faster on a sunny day than on a cloudy day?"; bad: "What makes water evaporate?"',
+      'good: "Why is eating 2/4 of a pizza the same as eating 1/2 of it?"; bad: "What are equivalent fractions?"',
     )
+  })
+
+  it('asks for check questions the student can reason out from the passages', () => {
+    const { systemInstruction } = buildPlanRequest(makeInput())
+    expect(systemInstruction).toContain("can be reasoned out from the step's passages alone")
+    expect(systemInstruction).not.toContain('can be answered from the step')
   })
 
   it('defaults the style to guided teaching', () => {

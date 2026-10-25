@@ -5,24 +5,28 @@ import { appError, errorBody, toAppError } from './errors.js'
 import { log } from './logger.js'
 import { openSse } from './sse.js'
 
+const GRADE_TIMEOUT_MS = 10_000
+
 // The tutor sometimes leaves out its hidden meta block. One JSON call grades the turn instead
-// (D8); if that fails too, the turn simply has no meta, as before.
-async function gradeTurn(gemini, input, reply, signal, passageIds) {
+// (D8). If that fails too (or takes over the timeout), the turn simply has no meta, as before;
+// `code` says why, for the log.
+async function gradeTurn(gemini, input, reply, signal) {
   try {
     const data = await gemini.generateJson({
       ...buildGradeRequest(input, reply.trim()),
       signal,
       invalidCode: 'MODEL_BUSY',
     })
-    return validateMeta(data, passageIds)
-  } catch {
-    return null
+    return { data }
+  } catch (err) {
+    // The grading timeout aborts the call like Stop does; the log should say which one it was.
+    return { code: signal.reason?.name === 'TimeoutError' ? 'TIMEOUT' : toAppError(err).code }
   }
 }
 
 // POST /api/tutor: one tutor turn, streamed as SSE (design §8). Validation errors happen before
 // the stream opens and go to the JSON error handler; later errors become an `error` event.
-export function createTutorRoute({ createGemini }) {
+export function createTutorRoute({ createGemini, gradeTimeoutMs = GRADE_TIMEOUT_MS }) {
   return async (req, res) => {
     const input = validateTutorInput(req.body)
     const started = Date.now()
@@ -35,6 +39,7 @@ export function createTutorRoute({ createGemini }) {
     })
 
     let code
+    let gradeCode
     let metaSource = 'none'
     try {
       const gemini = createGemini({ apiKey: res.locals.apiKey })
@@ -68,15 +73,21 @@ export function createTutorRoute({ createGemini }) {
       if (!sentText) throw appError('MODEL_BUSY')
       const passageIds = input.step.passages.map((p) => p.id)
       let meta = parseMeta(metaRaw, passageIds)
-      if (meta) metaSource = 'block'
-      else {
-        meta = await gradeTurn(gemini, input, reply, controller.signal, passageIds)
-        if (meta) metaSource = 'fallback'
+      let source = meta ? 'block' : 'none'
+      if (!meta) {
+        // A timeout aborts only the grading call; Stop or a disconnect aborts it too.
+        const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(gradeTimeoutMs)])
+        const graded = await gradeTurn(gemini, input, reply, signal)
+        meta = validateMeta(graded.data, passageIds)
+        // Log-only codes: TIMEOUT (above) and INVALID_GRADE (an answer that fails validation).
+        gradeCode = graded.code ?? (meta ? undefined : 'INVALID_GRADE')
+        if (meta) source = 'fallback'
       }
       if (controller.signal.aborted) {
         code = 'ABORTED'
         return
       }
+      metaSource = source
       if (meta) sse.send('meta', meta)
       sse.send('done', {})
     } catch (err) {
@@ -91,6 +102,7 @@ export function createTutorRoute({ createGemini }) {
         durationMs: Date.now() - started,
         code,
         metaSource,
+        gradeCode,
       })
     }
   }

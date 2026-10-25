@@ -31,9 +31,9 @@ const body = {
 let server
 let url
 
-async function start(streamText, generateJson = vi.fn()) {
+async function start(streamText, generateJson = vi.fn(), gradeTimeoutMs) {
   const createGemini = vi.fn(() => ({ streamText, generateJson }))
-  server = createApp({ createGemini, env: {} }).listen(0)
+  server = createApp({ createGemini, env: {}, gradeTimeoutMs }).listen(0)
   await new Promise((resolve) => server.once('listening', resolve))
   url = `http://localhost:${server.address().port}/api/tutor`
   return createGemini
@@ -143,12 +143,28 @@ it('sends done without meta when grading fails too', async () => {
   const events = parseSse(await (await post()).text())
   expect(events.map((e) => e.event)).toEqual(['delta', 'delta', 'done'])
   expect(logged()).toContain('"metaSource":"none"')
+  expect(logged()).toContain('"gradeCode":"RATE_LIMITED"')
+})
+
+it('gives up grading after the timeout and sends done without meta', async () => {
+  const generateJson = vi.fn(
+    ({ signal }) =>
+      new Promise((_, reject) => {
+        signal.addEventListener('abort', () => reject(signal.reason))
+      }),
+  )
+  await start(noBlock, generateJson, 20)
+  const events = parseSse(await (await post()).text())
+  expect(events.map((e) => e.event)).toEqual(['delta', 'delta', 'done'])
+  expect(logged()).toContain('"metaSource":"none"')
+  expect(logged()).toContain('"gradeCode":"TIMEOUT"')
 })
 
 it('sends done without meta when the grader answers with an unusable object', async () => {
   await start(noBlock, vi.fn().mockResolvedValue({ understanding: 'maybe', passageIds: [] }))
   const events = parseSse(await (await post()).text())
   expect(events.map((e) => e.event)).toEqual(['delta', 'delta', 'done'])
+  expect(logged()).toContain('"gradeCode":"INVALID_GRADE"')
 })
 
 it('sends an error event when gemini fails mid-stream', async () => {
@@ -230,4 +246,38 @@ it('writes nothing more when the client leaves during grading', async () => {
   await vi.waitFor(() => expect(logged()).toContain('"event":"tutor_turn"'), { timeout: 1000 })
   expect(logged()).toContain('"code":"ABORTED"')
   expect(logged()).toContain('"metaSource":"none"')
+})
+
+it('writes nothing when a grader that ignores the signal answers after the client left', async () => {
+  let gradingStarted
+  let answer
+  const started = new Promise((resolve) => (gradingStarted = resolve))
+  const generateJson = vi.fn(
+    () =>
+      new Promise((resolve) => {
+        answer = resolve
+        gradingStarted()
+      }),
+  )
+  await start(noBlock, generateJson)
+  const lateWrites = []
+  const write = ServerResponse.prototype.write
+  vi.spyOn(ServerResponse.prototype, 'write').mockImplementation(function (...args) {
+    if (this.destroyed || this.writableEnded) lateWrites.push(String(args[0]))
+    return write.apply(this, args)
+  })
+  const controller = new AbortController()
+  const res = await post({ signal: controller.signal })
+  await res.body.getReader().read()
+  await started
+  controller.abort()
+  // Let the server notice the disconnect before the grader answers.
+  await vi.waitFor(() => expect(generateJson.mock.calls[0][0].signal.aborted).toBe(true), {
+    timeout: 1000,
+  })
+  answer({ understanding: 'no', passageIds: ['p3-1'] })
+  await vi.waitFor(() => expect(logged()).toContain('"event":"tutor_turn"'), { timeout: 1000 })
+  expect(lateWrites).toEqual([])
+  expect(logged()).toContain('"code":"ABORTED"')
+  expect(logged()).not.toContain('"metaSource":"fallback"')
 })

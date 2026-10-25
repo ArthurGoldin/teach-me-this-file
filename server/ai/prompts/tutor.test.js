@@ -4,6 +4,7 @@ import { formatDocument } from './document.js'
 import {
   LAST_ATTEMPT_INSTRUCTION,
   MODE_INSTRUCTIONS,
+  UNDERSTANDING_RULE,
   buildTutorRequest,
   validateTutorInput,
 } from './tutor.js'
@@ -165,8 +166,12 @@ describe('buildTutorRequest', () => {
     expect(MODE_INSTRUCTIONS.guide).toContain(
       'then re-explain in 1 or 2 sentences with a different example or from a new angle, but leave out the exact fact the check question asks for',
     )
-    expect(MODE_INSTRUCTIONS.guide).toContain('give one hint as a statement (not a question)')
+    expect(MODE_INSTRUCTIONS.guide).toContain('give one hint (see rule 3)')
     const { systemInstruction } = buildTutorRequest(makeInput())
+    expect(systemInstruction).toContain('give one hint as a statement (not a question)')
+    expect(systemInstruction).toContain(
+      'Start with the smallest useful hint; make each next hint a little more concrete.',
+    )
     expect(systemInstruction).toContain(
       'never write the sentence that answers the check question: the student must still supply that fact or link.',
     )
@@ -179,8 +184,15 @@ describe('buildTutorRequest', () => {
     const { systemInstruction } = buildTutorRequest(makeInput())
     expect(systemInstruction).toContain('no summary of the whole document')
     expect(systemInstruction).toContain(
-      'explain the current small idea clearly, but leave the exact answer to the check question for the student, then ask one easy question that lets them supply it.',
+      'explain the current small idea clearly, but leave the exact answer to the check question for the student, then ask one easy, open question (not an either/or choice) that lets them supply it.',
     )
+  })
+
+  it('counts an answer to an easier follow-up or hint question as no attempt', () => {
+    expect(UNDERSTANDING_RULE).toContain(
+      'an answer to an easier follow-up or hint question that does not also answer the check question',
+    )
+    expect(buildTutorRequest(makeInput()).systemInstruction).toContain(UNDERSTANDING_RULE)
   })
 
   it('defines Socratic as questions built on what was taught, facts first', () => {

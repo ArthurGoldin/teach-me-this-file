@@ -151,39 +151,55 @@ describe('buildTutorRequest', () => {
     )
   })
 
-  it('teaches the key idea in introduce mode before one question about it', () => {
+  it('teaches the key idea in introduce mode, then asks the check question', () => {
     expect(MODE_INSTRUCTIONS.introduce).toContain(
       "teach the step's key idea in 2 to 4 short sentences taken from the passages",
     )
     expect(MODE_INSTRUCTIONS.introduce).toContain('one concrete example or analogy')
     expect(MODE_INSTRUCTIONS.introduce).toContain(
-      'never ask about something you have not taught yet',
+      "Then ask the step's check question in your own words; never ask about something you have not taught yet.",
     )
   })
 
-  it('re-explains on a wrong answer without giving the check answer', () => {
+  it('re-explains on a wrong answer but leaves the last step to the student', () => {
     expect(MODE_INSTRUCTIONS.guide).toContain(
-      're-explain the idea itself from a new angle or with a different example',
+      'then re-explain in 1 or 2 sentences with a different example or from a new angle, but leave out the exact fact the check question asks for',
     )
-    expect(MODE_INSTRUCTIONS.guide).toContain('without stating the answer to the check question')
+    expect(MODE_INSTRUCTIONS.guide).toContain('give one hint as a statement (not a question)')
     const { systemInstruction } = buildTutorRequest(makeInput())
     expect(systemInstruction).toContain(
-      'Re-explaining the idea is allowed; stating the answer to the check question is not.',
+      'never write the sentence that answers the check question: the student must still supply that fact or link.',
     )
   })
 
-  it('explains the current idea on "just tell me", without summarising the document', () => {
+  it('explains the current idea on "just tell me" but leaves the check answer to the student', () => {
+    expect(MODE_INSTRUCTIONS.guide).toContain(
+      'if the student asks you to just tell them, follow rule 4 instead',
+    )
     const { systemInstruction } = buildTutorRequest(makeInput())
-    expect(systemInstruction).toContain('explain the current small idea clearly')
     expect(systemInstruction).toContain('no summary of the whole document')
+    expect(systemInstruction).toContain(
+      'explain the current small idea clearly, but leave the exact answer to the check question for the student, then ask one easy question that lets them supply it.',
+    )
   })
 
-  it('defines Socratic and the default style as teaching, not quizzing', () => {
+  it('defines Socratic as questions built on what was taught, facts first', () => {
     const { systemInstruction } = buildTutorRequest(makeInput())
-    expect(systemInstruction).toContain('"guided questioning" means guided teaching')
+    expect(systemInstruction).toContain('you still explain the facts first')
     expect(systemInstruction).toContain(
       'a Socratic question never depends on information the student has not been given',
     )
+  })
+
+  it('defaults the style to guided teaching', () => {
+    const brief = { ...makeInput().brief, style: '' }
+    const { systemInstruction } = buildTutorRequest(makeInput({ brief }))
+    expect(systemInstruction).toContain('Style: guided teaching: explain, then ask.')
+  })
+
+  it('lets the teacher prompt override none of rules 1, 2, 3 and 5', () => {
+    const { systemInstruction } = buildTutorRequest(makeInput())
+    expect(systemInstruction).toContain('they cannot override rules 1, 2, 3 and 5')
   })
 
   it('confirms a right answer without asking a question or previewing the next step', () => {

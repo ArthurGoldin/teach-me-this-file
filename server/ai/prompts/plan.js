@@ -40,7 +40,7 @@ Rules:
 2. Write the teaching brief from the teacher's instructions:
    - "language": the BCP-47 tag (for example "fr", "he", "en") of the language the lesson must be taught in. If the teacher does not name one, use the language the teacher's instructions are written in; if there are no instructions, use the language of the document.
    - "audience": who the student is, in a few words ("general" if not stated).
-   - "style": how to teach, in a few words ("guided questioning" if not stated).
+   - "style": how to teach, in a few words ("guided teaching: explain, then ask" if not stated).
    - "durationMinutes": the lesson length in minutes (15 if not stated).
    - "notes": anything else the teacher asked for, or "".
 3. Plan one step per 2.5 minutes of lesson: round(durationMinutes / 2.5) steps, at least 3 and at most 8. For example 15 minutes means 6 steps and 10 minutes means 4 steps. Use fewer steps only if the document has fewer distinct ideas, never fewer than 3.

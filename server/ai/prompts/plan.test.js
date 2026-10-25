@@ -101,6 +101,11 @@ describe('buildPlanRequest', () => {
     )
   })
 
+  it('defaults the style to guided teaching', () => {
+    const { systemInstruction } = buildPlanRequest(makeInput())
+    expect(systemInstruction).toContain('("guided teaching: explain, then ask" if not stated)')
+  })
+
   it('sends every passage, formatted, in the user turn', () => {
     const { contents } = buildPlanRequest(makeInput())
     expect(contents).toHaveLength(1)

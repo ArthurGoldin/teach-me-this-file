@@ -119,6 +119,7 @@ Runtime
 
 - `react`, `react-dom`: the UI library required by the brief.
 - `express`: the Node HTTP layer; the same app runs in dev and on Vercel (D6, D14).
+- `@google/genai`: Google's official Gemini SDK; streaming, JSON-schema output and abort support without hand-rolled REST.
 
 Build and test
 

@@ -1,9 +1,12 @@
 {
-  "entry": ["api/index.js", "*.config.js"],
+  "entry": ["api/index.js", "*.config.js", "server/ai/gemini.js"],
   "project": ["client/**/*.{js,jsx}", "server/**/*.js", "api/**/*.js", "*.config.js"],
   "ignoreDependencies": [
     "tailwindcss",
     "@secretlint/secretlint-rule-preset-recommend",
     "@secretlint/secretlint-rule-pattern"
-  ]
+  ],
+  "ignoreIssues": {
+    "server/http/apiKey.js": ["exports"]
+  }
 }

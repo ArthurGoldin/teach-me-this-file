@@ -35,7 +35,7 @@ A teacher uploads a school file and writes a short prompt ("Teach this to 7th gr
 
 - React + Vite + Tailwind CSS + **JavaScript** (no TypeScript); Node.js back end.
 - Hosting: **Vercel Hobby**, one project. Function limits: **4.5 MB request/response body**, **300 s max duration including streaming**; functions share no memory between invocations ([Vercel limits](https://vercel.com/docs/functions/limitations)).
-- AI: **Gemini API**, model `gemini-3.8-flash` (free tier; text, image and PDF input; 1,048,576-token input; 65,536-token output; structured output supported). Verified 2026-10-25 on Google's [models](https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash) and [pricing](https://ai.google.dev/gemini-api/docs/pricing) pages. The first build task smoke-tests it with a real key (streaming, JSON schema, image input, abort); fallback `gemini-3.5-flash-lite`. Free-tier content may be used by Google to improve products — accepted and disclosed.
+- AI: **Gemini API**, model `gemini-3.5-flash-lite` (switched after a latency smoke test, see DECISIONS D3; free tier; text, image and PDF input; 1,048,576-token input; 65,536-token output; structured output supported). Verified 2026-10-25 on Google's [models](https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash) and [pricing](https://ai.google.dev/gemini-api/docs/pricing) pages. The first build task smoke-tests it with a real key (streaming, JSON schema, image input, abort); fallback `gemini-3.5-flash-lite`. Free-tier content may be used by Google to improve products — accepted and disclosed.
 - SDK: `@google/genai`; `GenerateContentConfig` supports `abortSignal` (client-side only) and `responseJsonSchema` (verified with context7).
 - Free-tier rate limits are per Google Cloud project and only shown in AI Studio; third-party reports suggest ~10 requests/min for Flash. The design minimises calls per turn.
 - The key comes from the user per request (header); optional `GEMINI_API_KEY` env fallback on the host.
@@ -83,7 +83,7 @@ A teacher uploads a school file and writes a short prompt ("Teach this to 7th gr
 │          plan validator · gemini.js (ONLY file that imports @google/genai)  │
 └───────────────────────────────┬─────────────────────────────────────────────┘
                                 ▼
-                          Gemini API (gemini-3.8-flash)
+                          Gemini API (gemini-3.5-flash-lite)
 ```
 
 **The server is stateless.** Every request carries everything that call needs; nothing is stored between requests. The browser owns the document, the plan and the progress.

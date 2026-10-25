@@ -41,6 +41,7 @@ A running log of the choices behind "Teach Me This File": what I chose, what I r
 - **Chose:** Vercel Hobby. The built React app is served as static files and the Express app runs as one function on the same origin (no CORS). Locally the same Express app runs inside the Vite dev server (D14).
 - **Rejected:** Render free (one Node service); a split setup (static host + API host).
 - **Why:** Render's free service sleeps after 15 minutes idle and takes up to a minute to wake, which is exactly when a reviewer opens the link. Vercel does not sleep. Its limits (4.5 MB per request, 300 s per call including streaming) fit this design: each tutor turn is a short request, and only text and single page images are uploaded. A split setup adds CORS and two deployments for no benefit.
+- **Wiring:** `api/index.js` default-exports the Express app; `vercel.json` rewrites `/api/*` to it.
 
 ### D7. Architecture: the browser owns the lesson, the server is stateless
 

@@ -11,7 +11,41 @@ const subscribe = (onChange) => {
 }
 const useWide = () => useSyncExternalStore(subscribe, () => window.matchMedia(WIDE).matches)
 
-function Passages({ passages, kind, onClose }) {
+// The original page next to its AI transcription, so the student can check it. The image is
+// held in memory only (App): after a reload it is gone and the panel says so.
+function PageImage({ url, page, kind }) {
+  if (!url) {
+    return (
+      <p className="mt-2 rounded-lg bg-surface px-3 py-2 text-sm text-slate/70">
+        Page image not available after reload.
+      </p>
+    )
+  }
+  const label = kind === 'image' ? 'The uploaded image' : `Page ${page} of the file`
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="mt-2 block overflow-hidden rounded-lg border border-slate/15 hover:border-teal"
+    >
+      <img src={url} alt={label} className="max-h-72 w-full bg-surface object-contain" />
+      <span className="sr-only"> (opens full size in a new tab)</span>
+    </a>
+  )
+}
+
+function Passages({ passages, kind, pageImages = {}, onClose }) {
+  // One image per page, above the first passage that comes from it.
+  const firstOfPage = new Set()
+  const shownPages = new Set()
+  for (const passage of passages) {
+    if (passage.origin === 'transcription' && !shownPages.has(passage.page)) {
+      shownPages.add(passage.page)
+      firstOfPage.add(passage.id)
+    }
+  }
+
   return (
     <>
       <div className="flex items-center justify-between gap-4 border-b border-surface px-5 py-3">
@@ -41,6 +75,9 @@ function Passages({ passages, kind, onClose }) {
                 <span className="font-semibold text-teal">{passageHeading(passage, kind)}</span>
                 <span className="text-slate/65">{originLabel(passage, kind)}</span>
               </p>
+              {firstOfPage.has(passage.id) && (
+                <PageImage url={pageImages[passage.page]} page={passage.page} kind={kind} />
+              )}
               <blockquote className="mt-2 border-s-[3px] border-teal-pale ps-4 leading-relaxed">
                 {passage.origin === 'transcription' ? (
                   <Markdown text={passage.text} />

@@ -48,4 +48,11 @@ describe('chunkPages', () => {
     expect(passage.text).toBe(he)
     expect(new TextEncoder().encode(passage.text)).toEqual(new TextEncoder().encode(he))
   })
+
+  it('keeps the Markdown blocks of a transcription, so paragraphs and tables survive', () => {
+    const text =
+      '# Speed\n\nName: ____ Class: 7B\n\n$$v = \\frac{d}{t}$$\n\n| a | b |\n| --- | --- |\n| 1 | 2 |'
+    const [passage] = chunkPages([{ page: 1, text, origin: 'transcription' }])
+    expect(passage.text).toBe(text)
+  })
 })

@@ -40,7 +40,7 @@ function LessonComplete({ onRestart, onNewLesson }) {
 // The whole screen follows the lesson language's direction, so a Hebrew lesson mirrors.
 // `appBar` (the app's title bar) sits on top of the chat column, so on wide screens the source
 // panel runs the full height beside both and the bar stays aligned with the chat.
-export default function LessonScreen({ lesson, dispatch, appBar, onOpenSettings }) {
+export default function LessonScreen({ lesson, dispatch, pageImages, appBar, onOpenSettings }) {
   const tutor = useTutor(lesson, dispatch)
   const [sourceId, setSourceId] = useState(null)
   const closeSource = useCallback(() => setSourceId(null), [])
@@ -91,7 +91,12 @@ export default function LessonScreen({ lesson, dispatch, appBar, onOpenSettings 
         </main>
       </div>
       {sourcePassages.length > 0 && (
-        <SourcePanel passages={sourcePassages} kind={lesson.document.kind} onClose={closeSource} />
+        <SourcePanel
+          passages={sourcePassages}
+          kind={lesson.document.kind}
+          pageImages={pageImages}
+          onClose={closeSource}
+        />
       )}
     </div>
   )

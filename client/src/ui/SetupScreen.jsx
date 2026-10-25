@@ -5,6 +5,7 @@ import ErrorNotice from './ErrorNotice.jsx'
 import FilePicker from './FilePicker.jsx'
 import RangePicker from './RangePicker.jsx'
 import { messageFor } from './errorMessages.js'
+import { formatPages } from './lessonFormat.js'
 import { useLessonBuilder } from './useLessonBuilder.js'
 import { useSecondsLeft } from './useSecondsLeft.js'
 
@@ -16,6 +17,8 @@ const KEY_ERRORS = ['NO_KEY', 'INVALID_KEY']
 // What screen readers hear when the stage changes (once per stage, not per page).
 const STAGE_ANNOUNCEMENTS = {
   reading: 'Reading the file',
+  transcribing: 'Reading scanned pages',
+  waiting: "Gemini's free-tier limit was reached. Waiting before trying again.",
   planning: 'Planning the lesson',
   'choose-range': 'File read. Choose the part to teach.',
 }
@@ -73,15 +76,12 @@ export default function SetupScreen({ hasKey, onOpenSettings, onLessonReady }) {
     if (KEY_ERRORS.includes(error?.code)) onOpenSettings(messageFor(error.code).text)
   }, [error, onOpenSettings])
 
-  const busy = stage === 'reading' || stage === 'planning'
+  const building = ['transcribing', 'waiting', 'planning'].includes(stage)
+  const busy = stage === 'reading' || building
   const waitSeconds = useSecondsLeft(error)
-  const inRange =
-    raw && range ? raw.pages.filter((p) => p.page >= range.from && p.page <= range.to) : []
-  // Temporary until scanned pages are transcribed (Task 12).
-  const scannedInRange = inRange.filter((p) => p.isScan).length
-  const onlyScans = scannedInRange > 0 && scannedInRange === inRange.length
-  const rangeOk = raw && range && checkRange(raw.pages, range).ok
-  const canBuild = rangeOk && !onlyScans && hasKey && !busy && waitSeconds === 0
+  const rateWaitSeconds = useSecondsLeft(builder.rateWait)
+  const rangeCheck = raw && range ? checkRange(raw.pages, range) : null
+  const canBuild = rangeCheck?.ok && hasKey && !busy && waitSeconds === 0
   const shownError = stage === 'error' && !KEY_ERRORS.includes(error.code) ? error : null
   const fileError = shownError && !raw
   const buildError = shownError && raw
@@ -92,11 +92,26 @@ export default function SetupScreen({ hasKey, onOpenSettings, onLessonReady }) {
   const stopState = (done, current) => (done ? 'done' : current ? 'current' : 'todo')
   const promptDone = prompt.trim() !== ''
 
-  async function handleBuild() {
+  async function handleBuild(options) {
     const teacherPrompt = prompt.trim()
-    const result = await builder.build(teacherPrompt)
+    const result = await builder.build(teacherPrompt, options)
     if (result) onLessonReady({ ...result, teacherPrompt })
   }
+
+  // The build stage's progress line: page images being transcribed, a rate-limit wait, or the
+  // plan call.
+  function buildLabel() {
+    if (stage === 'waiting') {
+      return `Gemini's free-tier limit was reached. Trying again in ${rateWaitSeconds} s.`
+    }
+    if (stage === 'planning') return 'Planning the lesson…'
+    if (raw.kind === 'image') return 'Gemini is transcribing the image…'
+    const { done = 0, total = 0 } = builder.progress ?? {}
+    return done === total
+      ? 'Reading scanned pages…'
+      : `Reading scanned pages: ${done} of ${total} done`
+  }
+  const notTranscribed = buildError ? (error.notTranscribed ?? []) : []
 
   function handleAction(action) {
     // Only a failed build offers retry: read failures are about the file (or need a reload).
@@ -150,11 +165,11 @@ export default function SetupScreen({ hasKey, onOpenSettings, onLessonReady }) {
                 unit={raw.kind === 'text' ? 'section' : 'page'}
               />
             )}
-            {scannedInRange > 0 && (
+            {rangeCheck?.inBounds && rangeCheck.scanPages > 0 && (
               <p className="rounded-xl bg-surface px-4 py-3 text-sm leading-relaxed">
-                {onlyScans
-                  ? "No pages with text in this range. Scanned pages aren't supported yet."
-                  : "Scanned pages aren't supported yet, so the lesson uses only the pages with text."}
+                {rangeCheck.scanPages === 1 && raw.kind === 'image'
+                  ? 'Gemini will transcribe the image before planning the lesson.'
+                  : `${rangeCheck.scanPages} scanned page${rangeCheck.scanPages === 1 ? '' : 's'} will be transcribed by Gemini before planning the lesson.`}
               </p>
             )}
           </div>
@@ -197,8 +212,12 @@ export default function SetupScreen({ hasKey, onOpenSettings, onLessonReady }) {
           last
         >
           <div className="flex flex-col gap-3">
-            {stage === 'planning' ? (
-              <BuildProgress label="Planning the lesson…" onCancel={builder.cancel} />
+            {building ? (
+              <BuildProgress
+                label={buildLabel()}
+                progress={stage === 'transcribing' ? builder.progress : null}
+                onCancel={builder.cancel}
+              />
             ) : (
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                 <button
@@ -227,6 +246,16 @@ export default function SetupScreen({ hasKey, onOpenSettings, onLessonReady }) {
             )}
             {buildError && (
               <ErrorNotice error={error} secondsLeft={waitSeconds} onAction={handleAction} />
+            )}
+            {notTranscribed.length > 0 && (
+              <button
+                type="button"
+                onClick={() => handleBuild({ skipUntranscribed: true })}
+                className="self-start rounded-lg px-4 py-2 font-medium text-teal underline underline-offset-2 hover:bg-surface"
+              >
+                Continue without {notTranscribed.length === 1 ? 'page' : 'pages'}{' '}
+                {formatPages(notTranscribed)}
+              </button>
             )}
           </div>
         </Stop>

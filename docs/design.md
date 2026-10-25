@@ -131,7 +131,9 @@ LessonDocument = {
   pageCount: 12,
   range: { from: 1, to: 12 },        // pages used for the lesson
   passages: Passage[],
-  skipped: [{ pages: [13, 14], reason: 'outside-range' | 'scan-limit' | 'unreadable' }],
+  skipped: [{ pages: [13, 14], reason: 'outside-range' | 'unreadable' | 'not-transcribed' }],
+  // unreadable: Gemini found no legible text (or the page could not be rendered / was too large);
+  // not-transcribed: the teacher chose "Continue without pages N–M" after a rate limit
   // page images for transcribed pages: object URLs, in memory only (not persisted)
 }
 
@@ -204,7 +206,7 @@ Teacher picks file + writes prompt
   │                                                                sequential, progress "3 of 8"
   │     readable:false or empty markdown → page recorded in `skipped` ('unreadable'), build continues
   │     RATE_LIMITED → wait retryAfterSeconds once (≤ 60 s, countdown shown), then offer
-  │                    "Retry" or "Continue without pages N–M" (those go to `skipped`)
+  │                    "Retry" or "Continue without pages N–M" (those go to `skipped`, 'not-transcribed')
   ├─ client: chunk all pages → passages (pure, ~600–1,200 chars, never across pages)
   ├─ POST /api/plan  { teacherPrompt, document: { name, passages } }
   │     server: build prompt (passages in <document> data block), Gemini JSON mode with schema,

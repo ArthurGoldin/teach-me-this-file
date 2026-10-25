@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useReducer, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { getConfig } from '../api/client.js'
 import { getKey } from '../api/keyStore.js'
 import { loadLesson, saveLesson } from '../lesson/persistence.js'
@@ -81,12 +81,38 @@ export default function App() {
     return () => controller.abort()
   }, [])
 
+  // Page images of transcribed pages, { [page]: objectUrl }: in memory only, never persisted, so
+  // after a reload the source panel says the image is not available. The old images are freed
+  // when a lesson replaces them or ends.
+  const [pageImages, setPageImages] = useState({})
+  const pageImagesRef = useRef(pageImages)
+  const replacePageImages = useCallback((next) => {
+    Object.values(pageImagesRef.current).forEach((url) => URL.revokeObjectURL(url))
+    pageImagesRef.current = next
+    setPageImages(next)
+  }, [])
+  useEffect(
+    () => () => Object.values(pageImagesRef.current).forEach((url) => URL.revokeObjectURL(url)),
+    [],
+  )
+  const lessonDispatch = useCallback(
+    (action) => {
+      if (action.type === 'lessonCleared') replacePageImages({})
+      dispatch(action)
+    },
+    [replacePageImages],
+  )
+
   const openSettings = useCallback((reason) => setSettings({ reason }), [])
   const closeSettings = useCallback(() => setSettings(null), [])
 
-  const handleLessonReady = useCallback(({ document, plan, teacherPrompt }) => {
-    dispatch({ type: 'lessonCreated', document, plan, teacherPrompt, now: Date.now() })
-  }, [])
+  const handleLessonReady = useCallback(
+    ({ document, plan, pageImages: images, teacherPrompt }) => {
+      replacePageImages(images)
+      dispatch({ type: 'lessonCreated', document, plan, teacherPrompt, now: Date.now() })
+    },
+    [replacePageImages],
+  )
 
   const hasKey = hasUserKey || hasServerKey
   const keyLabel = hasUserKey ? 'Key set' : hasServerKey ? 'Server key' : 'Add API key'
@@ -137,7 +163,8 @@ export default function App() {
         >
           <LessonScreen
             lesson={lesson}
-            dispatch={dispatch}
+            dispatch={lessonDispatch}
+            pageImages={pageImages}
             appBar={appBar}
             onOpenSettings={openSettings}
           />

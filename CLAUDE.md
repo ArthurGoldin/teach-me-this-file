@@ -54,7 +54,7 @@ Set these up in the scaffolding task, before any feature code. Verify current pa
 
 - `client/src/ui/`: React components only (no fetch, no prompt text, no lesson rules)
 - `client/src/lesson/`: reducer, selectors, persistence (pure, unit-tested)
-- `client/src/document/`: file reading, chunking, token budget
+- `client/src/document/`: file reading, chunking, token budget, page selection, transcription batches
 - `client/src/api/`: fetch client, SSE parser, keyStore (the only place the key may touch sessionStorage)
 - `server/`: `app.js` (Express app, shared by dev and Vercel), `http/` (key, errors, SSE, logger), `ai/` (Gemini calls, prompts, response parsing)
 - `api/index.js`: Vercel entry (added in the deploy task)

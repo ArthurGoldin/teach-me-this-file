@@ -1,41 +1,56 @@
 import { useEffect, useRef, useState } from 'react'
-import { createPlan } from '../api/client.js'
-import { applyRange, defaultRange } from '../document/budget.js'
+import { createPlan, transcribePages } from '../api/client.js'
+import { fitsInRequest, makeBatches } from '../document/batches.js'
+import { defaultRange } from '../document/budget.js'
 import { DocumentError } from '../document/errors.js'
 import { buildLessonDocument } from '../document/lessonDocument.js'
 import { readFile } from '../document/readFile.js'
+import { combinePages, selectPages } from '../document/selectPages.js'
 
 const extensionOf = (name) => (name.includes('.') ? name.split('.').pop().toUpperCase() : '')
 
-// The pages that go into the lesson, and what was left out.
-// Scanned pages are not transcribed yet: they are skipped with reason 'scan-limit'.
-function selectPages(raw, range) {
-  const { inRange, skipped } = applyRange(raw.pages, range)
-  const scanned = inRange.filter((p) => p.isScan).map((p) => p.page)
-  const pages = inRange
-    .filter((p) => !p.isScan)
-    .map(({ page, text }) => ({ page, text, origin: 'text' }))
-  return {
-    pages,
-    skipped: scanned.length > 0 ? [...skipped, { pages: scanned, reason: 'scan-limit' }] : skipped,
-  }
+// The longest rate-limit wait the builder sits through on its own (design §6.1).
+const MAX_AUTO_WAIT_SECONDS = 60
+
+function wait(seconds, signal) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, seconds * 1000)
+    signal.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer)
+        reject(new DOMException('Aborted', 'AbortError'))
+      },
+      { once: true },
+    )
+  })
 }
 
-// Drives the create-lesson flow (design §6.1): read the file, choose a page range, plan the
-// lesson. Holds only setup state; the finished lesson goes to the lesson reducer via App.
+const revoke = (entries) => entries.forEach((t) => t.objectUrl && URL.revokeObjectURL(t.objectUrl))
+
+// Drives the create-lesson flow (design §6.1): read the file, choose a page range, transcribe
+// scanned pages, plan the lesson. Holds only setup state; the finished lesson goes to the lesson
+// reducer via App, with the page images of transcribed pages (in memory only).
 export function useLessonBuilder() {
   const [stage, setStage] = useState('idle')
   const [progress, setProgress] = useState(null)
   const [raw, setRaw] = useState(null)
   const [range, setRange] = useState(null)
   const [error, setError] = useState(null)
+  // While waiting out a rate limit: { retryAfterSeconds, at } for the countdown.
+  const [rateWait, setRateWait] = useState(null)
   const controllerRef = useRef(null)
   // The open document (a parsed PDF holds memory and a worker until destroyed).
   const rawRef = useRef(null)
+  // Transcriptions of this document by page: { page, readable, markdown, objectUrl? }. Kept
+  // across Retry, so a page is sent to Gemini once.
+  const transcriptsRef = useRef(new Map())
 
   function replaceRaw(doc) {
     rawRef.current?.destroy()
     rawRef.current = doc
+    revoke([...transcriptsRef.current.values()])
+    transcriptsRef.current = new Map()
     setRaw(doc)
   }
 
@@ -44,6 +59,7 @@ export function useLessonBuilder() {
     () => () => {
       controllerRef.current?.abort()
       rawRef.current?.destroy()
+      revoke([...transcriptsRef.current.values()])
     },
     [],
   )
@@ -54,6 +70,7 @@ export function useLessonBuilder() {
     controllerRef.current = new AbortController()
     setError(null)
     setProgress(null)
+    setRateWait(null)
     return controllerRef.current.signal
   }
 
@@ -91,12 +108,98 @@ export function useLessonBuilder() {
     }
   }
 
-  async function build(teacherPrompt) {
+  // Renders the pages to JPEG. A page that cannot be rendered, or whose image is too large for
+  // any request, is unreadable: it is recorded at once and never sent.
+  async function renderPages(pages, signal) {
+    const items = []
+    for (const page of pages) {
+      if (signal.aborted) break
+      try {
+        const { base64, objectUrl } = await rawRef.current.renderPageJpeg(page)
+        const item = { page, base64, objectUrl }
+        if (fitsInRequest(item)) items.push(item)
+        else {
+          URL.revokeObjectURL(objectUrl)
+          transcriptsRef.current.set(page, { page, readable: false, markdown: '' })
+        }
+      } catch {
+        transcriptsRef.current.set(page, { page, readable: false, markdown: '' })
+      }
+    }
+    return items
+  }
+
+  async function sendBatch(batch, signal) {
+    const body = batch.map(({ page, base64 }) => ({ page, imageBase64: base64 }))
+    try {
+      return await transcribePages(body, { signal })
+    } catch (err) {
+      const seconds = err.retryAfterSeconds
+      if (err.code !== 'RATE_LIMITED' || !(seconds <= MAX_AUTO_WAIT_SECONDS)) throw err
+      // One automatic wait, with a countdown, then the same batch once more.
+      setRateWait({ retryAfterSeconds: seconds, at: Date.now() })
+      setStage('waiting')
+      await wait(seconds, signal)
+      setRateWait(null)
+      setStage('transcribing')
+      return transcribePages(body, { signal })
+    }
+  }
+
+  // Transcribes the scanned pages that have no transcription yet, batch by batch. After a rate
+  // limit the pages still missing are attached to the error ("Continue without pages N–M").
+  async function transcribe(scanPages, signal) {
+    const transcripts = transcriptsRef.current
+    const missing = () => scanPages.filter((page) => !transcripts.has(page))
+    if (missing().length === 0) return
+    setStage('transcribing')
+    const report = () =>
+      setProgress({ done: scanPages.length - missing().length, total: scanPages.length })
+    report()
+    const items = await renderPages(missing(), signal)
+    try {
+      for (const batch of makeBatches(items)) {
+        const { pages } = await sendBatch(batch, signal)
+        for (const result of pages) {
+          const { objectUrl } = batch.find((item) => item.page === result.page)
+          if (!result.readable) URL.revokeObjectURL(objectUrl)
+          transcripts.set(result.page, { ...result, objectUrl: result.readable ? objectUrl : null })
+        }
+        report()
+      }
+    } catch (err) {
+      // Images of pages not transcribed are rendered again on Retry.
+      revoke(items.filter((item) => !transcripts.has(item.page)))
+      // Only a rate limit offers to go on without them; other errors stop the build.
+      if (err.code === 'RATE_LIMITED') err.notTranscribed = missing()
+      throw err
+    }
+  }
+
+  // `skipUntranscribed`: after a rate limit, build without the pages not transcribed yet.
+  async function build(teacherPrompt, { skipUntranscribed = false } = {}) {
     const signal = startTask()
     try {
-      const { pages, skipped } = selectPages(raw, range)
+      const { textPages, scanPages, skipped } = selectPages(raw.pages, range)
+      if (!skipUntranscribed) await transcribe(scanPages, signal)
+      if (signal.aborted) return null
+      const done = scanPages.filter((p) => transcriptsRef.current.has(p))
+      const transcriptions = done.map((p) => transcriptsRef.current.get(p))
+      const combined = combinePages({
+        textPages,
+        transcriptions,
+        notTranscribed: scanPages.filter((p) => !transcriptsRef.current.has(p)),
+      })
       const { name, kind, pageCount } = raw
-      const document = buildLessonDocument({ name, kind, pageCount, range, pages, skipped })
+      const document = buildLessonDocument({
+        name,
+        kind,
+        pageCount,
+        range,
+        pages: combined.pages,
+        skipped: [...skipped, ...combined.skipped],
+      })
+      setProgress(null)
       setStage('planning')
       const result = await createPlan(
         { teacherPrompt, document: { name, passages: document.passages } },
@@ -107,14 +210,19 @@ export function useLessonBuilder() {
         fail({ code: 'NO_CONTENT' }, signal, { detail: result.reason })
         return null
       }
-      // The lesson keeps only text passages, so the parsed file can go now. The setup screen
-      // unmounts next, so `raw` state is left alone (no flash of an empty form).
-      // Task 12: keep this after transcription, which still needs the pages.
-      rawRef.current.destroy()
-      rawRef.current = null
-      return { document, plan: result.plan }
+      // Hand the page images of this lesson's transcribed pages over to App (they are not
+      // persisted); the builder frees everything else when the setup screen unmounts.
+      const pageImages = {}
+      for (const { page, objectUrl } of transcriptions) {
+        if (objectUrl) {
+          pageImages[page] = objectUrl
+          transcriptsRef.current.delete(page)
+        }
+      }
+      return { document, plan: result.plan, pageImages }
     } catch (err) {
-      fail(err, signal)
+      setRateWait(null)
+      fail(err, signal, { notTranscribed: err.notTranscribed })
       return null
     }
   }
@@ -122,12 +230,14 @@ export function useLessonBuilder() {
   function cancel() {
     controllerRef.current?.abort()
     setProgress(null)
+    setRateWait(null)
     setStage(readyStage(raw, range))
   }
 
   return {
     stage,
     progress,
+    rateWait,
     raw,
     range,
     setRange,

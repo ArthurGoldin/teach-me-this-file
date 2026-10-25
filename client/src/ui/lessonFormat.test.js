@@ -79,11 +79,13 @@ describe('includedSummary', () => {
   it('lists skipped pages other than those outside the range', () => {
     const skipped = [
       { pages: [181, 182], reason: 'outside-range' },
-      { pages: [30, 31, 32], reason: 'scan-limit' },
+      { pages: [30, 31, 32], reason: 'unreadable' },
+      { pages: [40], reason: 'not-transcribed' },
     ]
     expect(includedSummary({ ...doc, skipped })).toEqual([
       'This lesson uses pages 1–180 of 412.',
-      'Skipped pages 30–32: over the limit of 20 scanned pages.',
+      'Skipped pages 30–32: Gemini found no legible text.',
+      'Skipped page 40: not transcribed (Gemini rate limit).',
     ])
   })
 })

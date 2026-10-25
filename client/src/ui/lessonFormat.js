@@ -61,8 +61,8 @@ export function originLabel(passage, kind) {
 
 const SKIP_REASONS = {
   'outside-range': 'outside the chosen range',
-  'scan-limit': 'over the limit of 20 scanned pages',
-  unreadable: 'could not be read',
+  unreadable: 'Gemini found no legible text',
+  'not-transcribed': 'not transcribed (Gemini rate limit)',
 }
 
 // "What's included" lines for the lesson menu: the range used and every skipped group.

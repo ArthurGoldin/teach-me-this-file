@@ -1,4 +1,4 @@
-import { AppError } from './errors.js'
+import { appError } from './errors.js'
 
 export function resolveApiKey(req, env) {
   const fromHeader = req.get('x-gemini-key')?.trim()
@@ -9,7 +9,7 @@ export function requireApiKey(env) {
   return (req, res, next) => {
     const apiKey = resolveApiKey(req, env)
     if (!apiKey) {
-      return next(new AppError('NO_KEY', 'Paste a Gemini API key to start.', { status: 401 }))
+      return next(appError('NO_KEY'))
     }
     res.locals.apiKey = apiKey
     next()

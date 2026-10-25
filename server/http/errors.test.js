@@ -17,7 +17,7 @@ describe('toAppError', () => {
     expect(err.retryAfterSeconds).toBe(17)
   })
 
-  it.each([500, 503])('maps %i to MODEL_BUSY', (status) => {
+  it.each([500, 502, 503, 504])('maps %i to MODEL_BUSY', (status) => {
     expect(toAppError({ status, message: 'busy' }).code).toBe('MODEL_BUSY')
   })
 

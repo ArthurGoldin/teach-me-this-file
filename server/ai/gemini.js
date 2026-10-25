@@ -1,28 +1,36 @@
 import { GoogleGenAI } from '@google/genai'
-import { AppError, toAppError } from '../http/errors.js'
+import { appError, toAppError } from '../http/errors.js'
 
 export const MODEL_ID = 'gemini-3.8-flash'
 
-const BLOCKED = () =>
-  new AppError('BLOCKED', 'Gemini declined to answer this. Try rephrasing.', { status: 422 })
+const BLOCKING_FINISH_REASONS = new Set([
+  'SAFETY',
+  'PROHIBITED_CONTENT',
+  'BLOCKLIST',
+  'SPII',
+  'RECITATION',
+])
+
+function isBlocked(response) {
+  return (
+    Boolean(response.promptFeedback?.blockReason) ||
+    BLOCKING_FINISH_REASONS.has(response.candidates?.[0]?.finishReason)
+  )
+}
 
 export function createGemini({ apiKey }) {
   const ai = new GoogleGenAI({ apiKey })
+  const thinkingConfig = { thinkingLevel: 'LOW' }
 
   async function* streamText({ systemInstruction, contents, signal }) {
     try {
       const stream = await ai.models.generateContentStream({
         model: MODEL_ID,
         contents,
-        config: {
-          systemInstruction,
-          abortSignal: signal,
-          thinkingConfig: { thinkingLevel: 'LOW' },
-        },
+        config: { systemInstruction, abortSignal: signal, thinkingConfig },
       })
       for await (const chunk of stream) {
-        if (chunk.promptFeedback?.blockReason) throw BLOCKED()
-        if (chunk.candidates?.[0]?.finishReason === 'SAFETY') throw BLOCKED()
+        if (isBlocked(chunk)) throw appError('BLOCKED')
         if (chunk.text) yield chunk.text
       }
     } catch (err) {
@@ -38,13 +46,17 @@ export function createGemini({ apiKey }) {
         config: {
           systemInstruction,
           abortSignal: signal,
-          thinkingConfig: { thinkingLevel: 'LOW' },
+          thinkingConfig,
           responseMimeType: 'application/json',
           responseJsonSchema: schema,
         },
       })
-      if (response.promptFeedback?.blockReason) throw BLOCKED()
-      return JSON.parse(response.text)
+      if (isBlocked(response)) throw appError('BLOCKED')
+      try {
+        return JSON.parse(response.text)
+      } catch {
+        throw appError('PLAN_INVALID')
+      }
     } catch (err) {
       throw toAppError(err)
     }

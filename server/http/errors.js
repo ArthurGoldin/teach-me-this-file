@@ -20,8 +20,21 @@ export class AppError extends Error {
   }
 }
 
-function make(code, status, extra) {
-  return new AppError(code, MESSAGES[code], { status, ...extra })
+const STATUSES = {
+  NO_KEY: 401,
+  INVALID_KEY: 401,
+  RATE_LIMITED: 429,
+  MODEL_BUSY: 503,
+  BLOCKED: 422,
+  PAYLOAD_TOO_LARGE: 413,
+  BAD_REQUEST: 400,
+  PLAN_INVALID: 502,
+  INTERNAL: 500,
+}
+
+// Builds an AppError with the user-facing copy and HTTP status for a code.
+export function appError(code, extra) {
+  return new AppError(code, MESSAGES[code], { status: STATUSES[code], ...extra })
 }
 
 // Gemini puts the retry delay inside the error message JSON, e.g. "retryDelay":"17s".
@@ -33,24 +46,24 @@ function parseRetryDelay(message = '') {
 export function toAppError(err) {
   if (err instanceof AppError) return err
   if (err?.name === 'AbortError') return new AppError('ABORTED', 'Request aborted', { status: 499 })
-  if (err?.type === 'entity.too.large') return make('PAYLOAD_TOO_LARGE', 413)
+  if (err?.type === 'entity.too.large') return appError('PAYLOAD_TOO_LARGE')
 
   const message = String(err?.message ?? '')
   switch (err?.status) {
     case 400:
-      return message.includes('API_KEY_INVALID')
-        ? make('INVALID_KEY', 401)
-        : make('BAD_REQUEST', 400)
+      return message.includes('API_KEY_INVALID') ? appError('INVALID_KEY') : appError('BAD_REQUEST')
     case 401:
     case 403:
-      return make('INVALID_KEY', 401)
+      return appError('INVALID_KEY')
     case 429:
-      return make('RATE_LIMITED', 429, { retryAfterSeconds: parseRetryDelay(message) })
+      return appError('RATE_LIMITED', { retryAfterSeconds: parseRetryDelay(message) })
     case 500:
+    case 502:
     case 503:
-      return make('MODEL_BUSY', 503)
+    case 504:
+      return appError('MODEL_BUSY')
     default:
-      return make('INTERNAL', 500)
+      return appError('INTERNAL')
   }
 }
 

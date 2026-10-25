@@ -43,6 +43,15 @@ describe('createSseParser', () => {
     expect(onEvent).toHaveBeenCalledWith({ event: 'delta', data: { text: 'x' } })
   })
 
+  it('handles a CRLF separator split between \\r and \\n', () => {
+    const onEvent = vi.fn()
+    const parser = createSseParser(onEvent)
+    parser.push('event: delta\r\ndata: {"text":"x"}\r\n\r')
+    expect(onEvent).not.toHaveBeenCalled()
+    parser.push('\n')
+    expect(onEvent).toHaveBeenCalledWith({ event: 'delta', data: { text: 'x' } })
+  })
+
   it('ignores comment lines', () => {
     const onEvent = vi.fn()
     createSseParser(onEvent).push(': keep-alive\n\n')
@@ -90,6 +99,39 @@ describe('readSseResponse', () => {
     const response = responseFrom([frame('delta', { text: 'cut' })])
     const err = await readSseResponse(response, { onDelta: () => {} }).catch((e) => e)
     expect(err).toBeInstanceOf(ApiError)
+    expect(err.code).toBe('NETWORK')
+  })
+
+  it('rejects INTERNAL on a malformed frame', async () => {
+    const response = responseFrom(['event: delta\ndata: {oops\n\n'])
+    const err = await readSseResponse(response, {}).catch((e) => e)
+    expect(err).toBeInstanceOf(ApiError)
+    expect(err.code).toBe('INTERNAL')
+  })
+
+  it('propagates a throwing handler unchanged and cancels the stream', async () => {
+    const boom = new Error('handler failed')
+    const response = responseFrom([frame('delta', { text: 'a' }), frame('done', {})])
+    const err = await readSseResponse(response, {
+      onDelta: () => {
+        throw boom
+      },
+    }).catch((e) => e)
+    expect(err).toBe(boom)
+  })
+
+  it('rethrows AbortError from the body and maps other read failures to NETWORK', async () => {
+    const failing = (error) =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.error(error)
+          },
+        }),
+      )
+    const abort = new DOMException('Aborted', 'AbortError')
+    expect(await readSseResponse(failing(abort), {}).catch((e) => e)).toBe(abort)
+    const err = await readSseResponse(failing(new TypeError('reset')), {}).catch((e) => e)
     expect(err.code).toBe('NETWORK')
   })
 })

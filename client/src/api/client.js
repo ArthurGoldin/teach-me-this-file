@@ -24,6 +24,7 @@ async function request(path, { method = 'GET', body, signal } = {}) {
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null)
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
     const { code = 'INTERNAL', message, retryAfterSeconds } = payload?.error ?? {}
     throw new ApiError(code, message, retryAfterSeconds)
   }
@@ -32,11 +33,16 @@ async function request(path, { method = 'GET', body, signal } = {}) {
 
 async function requestJson(path, options) {
   const response = await request(path, options)
-  return response.json()
+  try {
+    return await response.json()
+  } catch {
+    if (options?.signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+    throw new ApiError('INTERNAL', 'The server sent an unreadable response.')
+  }
 }
 
-export function getConfig() {
-  return requestJson('/api/config')
+export function getConfig({ signal } = {}) {
+  return requestJson('/api/config', { signal })
 }
 
 export function transcribePages(pages, { signal } = {}) {
@@ -49,11 +55,5 @@ export function createPlan({ teacherPrompt, document }, { signal } = {}) {
 
 export async function streamTutor(input, { signal, onDelta, onMeta } = {}) {
   const response = await request('/api/tutor', { method: 'POST', body: input, signal })
-  try {
-    await readSseResponse(response, { onDelta, onMeta })
-  } catch (err) {
-    // A reader error mid-stream (not an AbortError) means the connection dropped.
-    if (err instanceof ApiError || err?.name === 'AbortError') throw err
-    throw new ApiError('NETWORK', 'The connection dropped before the answer finished.')
-  }
+  await readSseResponse(response, { onDelta, onMeta })
 }

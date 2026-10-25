@@ -78,4 +78,45 @@ describe('api client', () => {
     expect(onDelta).toHaveBeenCalledWith('Hi')
     expect(onMeta).toHaveBeenCalledWith({ understanding: 'solid', passageIds: [] })
   })
+
+  it('maps a non-JSON 200 body to INTERNAL', async () => {
+    stubFetch(async () => new Response('<html>oops</html>'))
+    const err = await getConfig().catch((e) => e)
+    expect(err.code).toBe('INTERNAL')
+  })
+
+  it('rethrows AbortError when the error body read fails after an abort', async () => {
+    const controller = new AbortController()
+    controller.abort()
+    stubFetch(async () => new Response('not json', { status: 500 }))
+    const err = await getConfig({ signal: controller.signal }).catch((e) => e)
+    expect(err.name).toBe('AbortError')
+  })
+
+  it('surfaces an abort mid-stream as AbortError through streamTutor', async () => {
+    const abort = new DOMException('Aborted', 'AbortError')
+    stubFetch(
+      async () =>
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.error(abort)
+            },
+          }),
+        ),
+    )
+    const err = await streamTutor({}, {}).catch((e) => e)
+    expect(err.name).toBe('AbortError')
+  })
+
+  it('rejects with the code of an error event that follows deltas', async () => {
+    const body =
+      'event: delta\ndata: {"text":"Hi"}\n\n' +
+      'event: error\ndata: {"code":"MODEL_BUSY","message":"Busy"}\n\n'
+    stubFetch(async () => new Response(body))
+    const onDelta = vi.fn()
+    const err = await streamTutor({}, { onDelta }).catch((e) => e)
+    expect(onDelta).toHaveBeenCalledWith('Hi')
+    expect(err.code).toBe('MODEL_BUSY')
+  })
 })

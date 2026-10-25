@@ -10,7 +10,11 @@ function parseBlock(block) {
     else if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart())
   }
   if (dataLines.length === 0) return null
-  return { event, data: JSON.parse(dataLines.join('\n')) }
+  try {
+    return { event, data: JSON.parse(dataLines.join('\n')) }
+  } catch {
+    throw new ApiError('INTERNAL', 'The server sent an unreadable message.')
+  }
 }
 
 // Chunks can cut an event anywhere, so text is buffered until a blank line ends a block.
@@ -18,7 +22,11 @@ export function createSseParser(onEvent) {
   let buffer = ''
   return {
     push(text) {
-      buffer += text.replace(/\r\n/g, '\n')
+      // A chunk can end between "\r" and "\n", so normalise the whole buffer and hold back a
+      // trailing lone "\r" until the next chunk shows whether it starts a "\r\n".
+      buffer += text
+      const heldCr = buffer.endsWith('\r')
+      buffer = (heldCr ? buffer.slice(0, -1) : buffer).replace(/\r\n/g, '\n') + (heldCr ? '\r' : '')
       let end
       while ((end = buffer.indexOf('\n\n')) !== -1) {
         const parsed = parseBlock(buffer.slice(0, end))
@@ -44,14 +52,22 @@ export async function readSseResponse(response, { onDelta, onMeta }) {
 
   const reader = response.body.getReader()
   const decoder = new TextDecoder()
-  for (;;) {
-    const { done, value } = await reader.read()
-    if (done) break
-    parser.push(decoder.decode(value, { stream: true }))
-    if (failure) {
-      await reader.cancel()
-      throw failure
+  try {
+    for (;;) {
+      let chunk
+      try {
+        chunk = await reader.read()
+      } catch (err) {
+        if (err?.name === 'AbortError') throw err
+        throw new ApiError('NETWORK', 'The connection dropped before the answer finished.')
+      }
+      if (chunk.done) break
+      // Malformed frames throw ApiError('INTERNAL'); handler exceptions propagate unchanged.
+      parser.push(decoder.decode(chunk.value, { stream: true }))
+      if (failure) throw failure
     }
+  } finally {
+    reader.cancel().catch(() => {})
   }
   if (failure) throw failure
   if (!finished) throw new ApiError('NETWORK', 'The connection dropped before the answer finished.')

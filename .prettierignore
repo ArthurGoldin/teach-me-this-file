@@ -1,0 +1,6 @@
+dist
+node_modules
+coverage
+.superpowers
+.playwright-mcp
+package-lock.json

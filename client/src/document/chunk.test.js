@@ -1,0 +1,86 @@
+import { describe, expect, it } from 'vitest'
+import { chunkPages } from './chunk.js'
+
+const para = (n) => `Paragraph ${n}. ` + 'The water moves around the planet. '.repeat(10).trim()
+
+describe('chunkPages', () => {
+  it('gives stable ids p{page}-{n} starting at 1, per page', () => {
+    const pages = [
+      { page: 1, text: [para(1), para(2), para(3), para(4)].join('\n\n'), origin: 'text' },
+      { page: 2, text: para(5), origin: 'text' },
+    ]
+    const ids = chunkPages(pages).map((p) => p.id)
+    expect(ids.slice(-1)).toEqual(['p2-1'])
+    expect(ids.slice(0, 2)).toEqual(['p1-1', 'p1-2'])
+  })
+
+  it('keeps passages within 1,200 characters and on their own page', () => {
+    const pages = [
+      { page: 3, text: 'A long sentence goes here. '.repeat(200), origin: 'text' },
+      { page: 4, text: 'x'.repeat(3000), origin: 'text' },
+    ]
+    const passages = chunkPages(pages)
+    for (const p of passages) expect(p.text.length).toBeLessThanOrEqual(1200)
+    for (const p of passages) expect(p.id.startsWith(`p${p.page}-`)).toBe(true)
+    expect(new Set(passages.map((p) => p.page))).toEqual(new Set([3, 4]))
+  })
+
+  it('packs short paragraphs together up to the limit', () => {
+    const text = Array.from({ length: 30 }, (_, i) => `Line ${i} of the page.`).join('\n')
+    const passages = chunkPages([{ page: 1, text, origin: 'text' }])
+    expect(passages).toHaveLength(1)
+    expect(passages[0].text).toBe(text)
+  })
+
+  it('preserves origin and skips empty pages', () => {
+    const passages = chunkPages([
+      { page: 1, text: '   \n ', origin: 'text' },
+      { page: 2, text: 'Transcribed $x^2$ text.', origin: 'transcription' },
+    ])
+    expect(passages).toEqual([
+      { id: 'p2-1', page: 2, text: 'Transcribed $x^2$ text.', origin: 'transcription' },
+    ])
+  })
+
+  it('keeps Hebrew text unchanged', () => {
+    const he = 'מחזור המים הוא תהליך מתמשך.\nהמים מתאדים מן הים ועולים לשמיים.'
+    const [passage] = chunkPages([{ page: 1, text: he, origin: 'text' }])
+    expect(passage.text).toBe(he)
+    expect(new TextEncoder().encode(passage.text)).toEqual(new TextEncoder().encode(he))
+  })
+
+  it('keeps the Markdown blocks of a transcription, so paragraphs and tables survive', () => {
+    const text =
+      '# Speed\n\nName: ____ Class: 7B\n\n$$v = \\frac{d}{t}$$\n\n| a | b |\n| --- | --- |\n| 1 | 2 |'
+    const [passage] = chunkPages([{ page: 1, text, origin: 'transcription' }])
+    expect(passage.text).toBe(text)
+  })
+
+  it('splits a long transcribed table by rows and repeats its header in each passage', () => {
+    const header = '| Object | Distance (m) |\n| --- | --- |'
+    const rows = Array.from({ length: 60 }, (_, i) => `| Object number ${i} | ${i * 10} |`)
+    const text = `Intro paragraph.\n\n${header}\n${rows.join('\n')}`
+    const passages = chunkPages([{ page: 2, text, origin: 'transcription' }])
+    const tables = passages.filter((p) => p.text.includes('| --- |'))
+    expect(tables.length).toBeGreaterThan(1)
+    for (const p of passages) expect(p.text.length).toBeLessThanOrEqual(1200)
+    for (const p of tables)
+      expect(p.text.slice(p.text.indexOf('| Object |'))).toMatch(
+        /^\| Object \| Distance \(m\) \|\n\| --- \| --- \|\n\| Object number/,
+      )
+    const allRows = tables.flatMap((p) =>
+      p.text.split('\n').filter((l) => l.startsWith('| Object number')),
+    )
+    expect(allRows).toEqual(rows)
+  })
+  it('keeps the rows of a table in a text file together, so a table is never cut mid-way', () => {
+    const intro = 'Speed is distance divided by time. '.repeat(30).trim()
+    const table = [
+      '| Traveller | Distance (km) | Time (h) |',
+      '| --- | --- | --- |',
+      ...Array.from({ length: 5 }, (_, i) => `| Traveller number ${i} | ${i * 10} | ${i} |`),
+    ].join('\n')
+    const passages = chunkPages([{ page: 1, text: `${intro}\n${table}\nThe end.`, origin: 'text' }])
+    expect(passages.some((p) => p.text.includes(table))).toBe(true)
+  })
+})

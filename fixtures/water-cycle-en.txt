@@ -1,0 +1,106 @@
+# The Water Cycle
+
+## Why water keeps moving
+
+Every drop of water on Earth has a long history. The water you drink today may once have been part of a cloud, a river, a glacier, or even the sweat of a dinosaur. That is possible because Earth does not make new water or lose much of its old water. Instead, the same water travels again and again between the oceans, the air, the land, and living things. This endless journey is called the water cycle.
+
+The water cycle is powered by two forces. The first is the Sun, which supplies heat. The second is gravity, which pulls water downward. Heat lifts water into the air, and gravity brings it back to the ground. Together they keep water moving all the time, day and night, in every part of the world.
+
+Scientists often describe the water cycle in four main stages: evaporation, condensation, precipitation, and collection. A fifth process, transpiration, happens in plants and adds a lot of water vapor to the air. In this text we will look at each stage, and then at how they connect into one cycle.
+
+## Evaporation
+
+Evaporation is the change of liquid water into water vapor, which is a gas. When the Sun warms the surface of an ocean, a lake, or a puddle, some of the water molecules move faster and faster. Eventually, the fastest molecules escape from the surface and rise into the air as an invisible gas.
+
+You can see evaporation at home. After a rainstorm, puddles on the street slowly shrink and then disappear. Wet clothes on a line become dry. A glass of water left on a windowsill has less water in it after a few days. In every case, the liquid has turned into vapor and mixed with the air.
+
+Several things change how fast water evaporates. Warmer temperatures speed it up, because the molecules have more energy. Wind speeds it up, because it carries away the vapor that is already above the water and makes room for more. Dry air speeds it up, because air that already holds a lot of moisture cannot take much more. A large surface also matters: water spread across a wide, shallow plate dries faster than the same water in a tall, narrow bottle.
+
+Most evaporation happens over the oceans, simply because oceans cover about seventy percent of the planet. When ocean water evaporates, the salt stays behind. Only pure water goes into the air. This is one reason why rain is fresh water even though it begins in the salty sea.
+
+## Transpiration
+
+Plants are also part of the water cycle. A plant takes water from the soil through its roots and carries it up through its stem to its leaves. Leaves have tiny openings called stomata. Through these openings, the plant releases water vapor into the air. This process is called transpiration.
+
+Transpiration works a little like sweating. It helps the plant stay cool, and it also pulls more water up from the roots, bringing minerals from the soil along with it. A single large tree can release hundreds of liters of water into the air on a warm day. In a big forest, this adds up to a huge amount of vapor. In rainforests, transpiration is one of the reasons why the air feels so humid and why clouds often form above the trees.
+
+Scientists often combine evaporation and transpiration into one word, evapotranspiration. It simply means all the water that moves from the land and the plants into the air.
+
+## Condensation
+
+Water vapor is invisible, but it does not stay in the air forever. As warm, moist air rises, it moves into higher parts of the atmosphere where the temperature is much lower. Cold air cannot hold as much water vapor as warm air. When the air cools enough, the vapor changes back into tiny drops of liquid water. This change from gas to liquid is called condensation.
+
+The drops are extremely small, so small that thousands of them would fit on the tip of a pencil. They gather around tiny bits of dust, smoke, or salt floating in the air. Billions and billions of these drops together make a cloud. So a cloud is not made of vapor. It is made of liquid droplets, or, in very cold clouds, of tiny ice crystals.
+
+You can see condensation without leaving the kitchen. When you pour a cold drink into a glass on a hot day, small drops appear on the outside of the glass. The water did not leak through the glass. It came from the air, where invisible vapor touched the cold surface, cooled down, and turned into liquid. Fog works in the same way: it is simply a cloud that forms close to the ground.
+
+## Precipitation
+
+When cloud droplets bump into each other, they join together and grow larger. At some point they become too heavy to float, and gravity pulls them toward the ground. Water that falls from clouds is called precipitation.
+
+Precipitation comes in several forms, and the form depends on the temperature of the air it falls through:
+
+- Rain: liquid drops of water, the most common form.
+- Snow: ice crystals that stick together and form flakes.
+- Sleet: rain that freezes into small pellets as it falls.
+- Hail: lumps of ice that grow in layers inside strong storm clouds, sometimes as big as a golf ball.
+
+Not every place receives the same amount of precipitation. Mountains often get more, because moving air is pushed upward by the slope, cools quickly, and drops its water. The far side of the mountain, called the rain shadow, is often dry. Deserts get very little precipitation, while tropical regions near the equator can get several meters in a single year.
+
+## Collection
+
+After water reaches the ground, it goes in several directions. This stage is called collection, and it includes everything that happens to water after it falls.
+
+Some water runs across the surface. This is called runoff. It flows downhill into streams and rivers, and the rivers carry it to lakes or back to the ocean. Runoff is fastest on steep slopes and on hard surfaces such as roofs and roads, where the water cannot soak in.
+
+Some water soaks into the soil. This is called infiltration. The water moves down through small spaces between particles of soil and rock until it reaches a layer that is completely filled with water. The top of that layer is called the water table, and the water below it is called groundwater. People dig wells to reach groundwater, and in many places it is the main source of drinking water. Groundwater moves very slowly, sometimes only a few centimeters a day, and it may stay underground for hundreds or even thousands of years before it comes out again at a spring or flows into a river.
+
+Some water is frozen. In cold places, snow and ice can stay on mountains and in polar regions for a very long time. Glaciers are huge rivers of ice that move slowly downhill. When the climate is warm, they melt and release water. When it is cold, they grow and store water. About two percent of all the water on Earth is locked in ice, and most of it is in Antarctica and Greenland.
+
+Finally, a lot of the water is used by living things. Animals drink it. Plants take it up through their roots. People use it for cooking, washing, farming, and industry. Most of this water eventually returns to the cycle, through breathing, sweat, waste water, and evaporation.
+
+## Where is the water?
+
+Earth holds a great deal of water, but most of it is not easy to use. The table below shows roughly where the water is.
+
+| Place                    | Share of all water on Earth |
+| ------------------------ | --------------------------- |
+| Oceans (salt water)      | about 97%                   |
+| Ice caps and glaciers    | about 2%                    |
+| Groundwater              | about 0.6%                  |
+| Lakes, rivers, and air   | less than 0.1%              |
+
+Only about three percent of Earth's water is fresh, and most of that is frozen or deep underground. The fresh water in rivers and lakes that people use every day is a very small slice. This is why protecting clean water matters so much.
+
+## Putting the stages together
+
+The stages do not happen in a fixed order, and they do not happen only once. They overlap. At this very moment, water is evaporating from the Pacific Ocean while rain is falling on a forest in Brazil and snow is building up on a mountain in Canada. The cycle has no true beginning and no end. We start with evaporation only because it is easy to picture.
+
+Here is one possible journey of a single drop. A drop in the ocean is heated by the Sun and evaporates. It rises, cools, and condenses into a cloud. Wind carries the cloud over land, where the drop falls as snow on a mountain. In spring the snow melts and the water runs into a stream. The stream joins a river, and the river flows back to the ocean. On the way, a plant might take up the drop and release it through its leaves, and the journey would start again from the air.
+
+An important idea is that the total amount of water stays almost constant. We can show this with a simple balance:
+
+water in the air + water on land + water in the oceans = a constant amount
+
+If more water is stored in one place, such as in glaciers, then less is available somewhere else, such as in the oceans. This is why melting ice changes the level of the sea.
+
+## How humans change the cycle
+
+People are part of the water cycle, and their actions can change it. Cutting down forests reduces transpiration, which can mean fewer clouds and less rain in that region. Building cities covers soil with concrete, so less water soaks in and more runs off, which raises the risk of floods. Taking too much groundwater for farming can lower the water table until wells run dry. Pollution can make water unsafe to drink even though the amount of water has not changed.
+
+A warming climate also speeds up the cycle. Warmer air can hold more water vapor, so evaporation increases. This can lead to heavier storms in some regions and longer droughts in others. Scientists are still studying exactly how the pattern will change, but they agree that the water cycle and the climate affect each other.
+
+There are many ways to protect water. Households can fix leaking taps, collect rainwater for gardens, and avoid pouring chemicals down the drain. Farmers can water crops in the evening and use drip systems that deliver water to the roots. Cities can plant trees and build parks that let rain soak into the ground. Each of these actions helps keep fresh water available for people, plants, and animals.
+
+## Quick review
+
+- Evaporation turns liquid water into vapor, powered by the Sun.
+- Transpiration is evaporation through the leaves of plants.
+- Condensation turns vapor into droplets and forms clouds.
+- Precipitation brings water back to the surface as rain, snow, sleet, or hail.
+- Collection gathers the water in rivers, lakes, oceans, soil, and ice.
+- The same water goes around again and again, and the total amount stays almost constant.
+
+## Try it yourself
+
+Place a few centimeters of warm water in a clear bowl. Cover the bowl with plastic wrap, and put a small ice cube on top of the wrap, over the middle. Watch for ten minutes. You will see drops forming on the underside of the plastic and then running down and falling back into the bowl. The warm water evaporates, the vapor cools against the cold plastic and condenses, and the drops fall like rain. You have just built a small water cycle.

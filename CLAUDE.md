@@ -42,14 +42,23 @@ Set these up in the scaffolding task, before any feature code. Verify current pa
 
 ## Commands
 
-<!-- Fill in once the project is scaffolded (or run /init to update this file). -->
-- Dev: TBD
-- Test: TBD
-- Build: TBD
-- Lint: `npm run lint` (TBD)
-- Format: `npm run format` (TBD)
+- Dev: `npm run dev` (one process: Vite plus the Express app as middleware, on :5173; optional `.env` with `GEMINI_API_KEY`)
+- Test: `npm test`
+- Build: `npm run build` (to `dist/`)
+- Lint: `npm run lint`
+- Format: `npm run format` (check only: `npm run format:check`)
 - Dead code: `npx knip`
+- Secret scan: `npm run secrets`
 
 ## Project map
 
-<!-- Fill in after the design doc is approved. -->
+- `client/src/ui/`: React components and the two I/O hooks (`useLessonBuilder` for setup, `useTutor` for lesson turns); no prompt text, no lesson rules. Error copy: `errorMessages.js`
+- `client/src/lesson/`: `reducer.js`, `selectors.js` (`MAX_MISSES`, `MAX_TURNS`, `buildTutorInput`), `persistence.js` (unit-tested with injected storage)
+- `client/src/document/`: `readFile.js` (file types), pdf.js wrapper, passages and chunking, token budget, page range, transcription batches
+- `client/src/api/`: fetch client, SSE parser, `keyStore.js` (the only place the key may touch sessionStorage)
+- `server/app.js`: Express app, shared by dev and Vercel
+- `server/http/`: routes (`planRoute`, `tutorRoute` incl. fallback grader, `transcribeRoute`), key header, errors, SSE, logger
+- `server/ai/`: `gemini.js` (all SDK calls, `MODEL_ID`), `meta.js`, `planSchema.js`, `prompts/` (plan, tutor, grade, transcribe, document)
+- `api/index.js`: Vercel entry; `vercel.json`: build, rewrite, CSP
+- `fixtures/`: test files for evals and manual checks
+- `docs/`: assignment, design, plan, `interview-notes.md`. README.md (run/use) and DECISIONS.md (choices, weaknesses, evals) at the root

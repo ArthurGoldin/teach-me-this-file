@@ -1,0 +1,120 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-white: #ffffff;
+  --color-surface: #f4f8f8;
+  --color-teal: #0f6e6a;
+  --color-teal-pale: #9fcfc9;
+  --color-amber: #f2a900;
+  --color-slate: #1e2a33;
+  --font-sans: 'Lexend', system-ui, sans-serif;
+}
+
+body {
+  background-color: var(--color-white);
+  color: var(--color-slate);
+  font-family: var(--font-sans);
+}
+
+/* In the base layer, so a component's own focus style (a utility class) can replace it. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-teal);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@keyframes indeterminate {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
+/* Markdown in messages and passages (Markdown.jsx). Preflight removes list and heading styles,
+   so the few that teaching text needs come back here. */
+.markdown > * + * {
+  margin-top: 0.6em;
+}
+.markdown :is(ul, ol) {
+  padding-inline-start: 1.4em;
+}
+.markdown ul {
+  list-style: disc;
+}
+.markdown ol {
+  list-style: decimal;
+}
+.markdown li + li {
+  margin-top: 0.25em;
+}
+.markdown :is(h3, h4) {
+  font-weight: 600;
+}
+.markdown strong {
+  font-weight: 600;
+}
+.markdown a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.markdown code {
+  border-radius: 0.25rem;
+  background-color: rgb(30 42 51 / 0.07);
+  padding: 0.05em 0.3em;
+  font-size: 0.9em;
+}
+.markdown blockquote {
+  border-inline-start: 3px solid var(--color-teal-pale);
+  padding-inline-start: 0.8em;
+}
+/* A table keeps readable columns (each as wide as its text, up to 16em) and scrolls inside its
+   wrapper (Markdown.jsx) instead of squeezing every cell into a narrow phone bubble. */
+.markdown table {
+  width: max-content;
+  border-collapse: collapse;
+  font-size: 0.92em;
+}
+.markdown :is(th, td) {
+  max-width: 16em;
+  border: 1px solid rgb(30 42 51 / 0.15);
+  padding: 0.3em 0.6em;
+  text-align: start;
+  vertical-align: top;
+}
+.markdown th {
+  font-weight: 600;
+}
+
+/* Formulas read left to right even inside a Hebrew or Arabic message. */
+.katex {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+@keyframes typing {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+  }
+  40% {
+    opacity: 1;
+  }
+}

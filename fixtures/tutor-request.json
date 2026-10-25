@@ -1,0 +1,55 @@
+{
+  "brief": {
+    "language": "en",
+    "audience": "7th graders",
+    "style": "socratic",
+    "durationMinutes": 15
+  },
+  "teacherPrompt": "Teach this to 7th graders. Be Socratic. Keep it under 15 minutes.",
+  "lessonTitle": "The water cycle",
+  "stepNumber": 1,
+  "stepCount": 3,
+  "step": {
+    "title": "Evaporation",
+    "objective": "Explain how heat from the sun turns liquid water into water vapor.",
+    "keyPoints": [
+      "The sun warms oceans, lakes and rivers.",
+      "As water heats up, some of it turns into an invisible gas called water vapor: this is evaporation.",
+      "Warm air carries the water vapor upward."
+    ],
+    "checkQuestion": "Why does a wet T-shirt dry faster on a sunny day than on a cloudy day?",
+    "passages": [
+      {
+        "id": "p1-1",
+        "page": 1,
+        "origin": "text",
+        "text": "The sun warms oceans, lakes and rivers. As the water heats up, some of it turns into an invisible gas called water vapor. This process is called evaporation."
+      },
+      {
+        "id": "p1-2",
+        "page": 1,
+        "origin": "text",
+        "text": "Warm air carries the water vapor upward. Plants also release water vapor through their leaves, which adds to the moisture in the air."
+      }
+    ]
+  },
+  "outline": [
+    {
+      "title": "Evaporation",
+      "objective": "Explain how heat from the sun turns liquid water into water vapor."
+    },
+    {
+      "title": "Condensation",
+      "objective": "Describe how rising vapor cools and forms clouds."
+    },
+    {
+      "title": "Precipitation",
+      "objective": "Name the ways water returns to the ground and how the cycle repeats."
+    }
+  ],
+  "mode": "introduce",
+  "misses": 0,
+  "lastAttempt": false,
+  "elapsedMinutes": 0,
+  "history": []
+}

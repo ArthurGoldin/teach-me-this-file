@@ -16,11 +16,12 @@ A running log of the choices behind "Teach Me This File": what I chose, what I r
 - **Rejected:** a review/edit screen before the lesson starts.
 - **Why:** time. It is a real gap (a teacher would want to check the plan), listed under weaknesses.
 
-### D3. One AI provider: Google Gemini, model `gemini-3.8-flash`
+### D3. One AI provider: Google Gemini, model `gemini-3.5-flash-lite`
 
-- **Chose:** Gemini only. Every call to the SDK lives in one server file, and the model ID is one constant (`gemini-3.5-flash-lite` is the lighter fallback).
-- **Rejected:** a thin adapter for Gemini + Groq; OpenRouter.
+- **Chose:** Gemini only. Every call to the SDK lives in one server file, and the model ID is one constant. The model is `gemini-3.5-flash-lite`, chosen after a smoke test on 2026-10-25 with a free-tier key: `gemini-3.8-flash` gave no response within 60 s twice, `gemini-3.6-flash` took about 22 s to the first token, `gemini-3.5-flash-lite` took 0.7–2.5 s; JSON schema output and abort were verified on it.
+- **Rejected:** a thin adapter for Gemini + Groq; OpenRouter. `gemini-3.8-flash` and `gemini-3.6-flash`, for latency (a chat that waits 20 s or more per turn does not feel like a lesson).
 - **Why:** Gemini has a free tier and reads PDFs and images natively (useful for scanned pages, formulas and tables), with a 1M-token context. Groq's free tier has no confirmed PDF/image input, so behaviour would differ by provider and double the testing. OpenRouter's free models allow 50 requests per day without paid credits and can disappear without notice. Checked on 2026-10-25 on Google's models and pricing pages.
+- **Trade-off:** a smaller model may teach less well; the test scenarios check it. Switching back is one constant.
 
 ### D4. File types: PDF, images (JPG/PNG/WebP), TXT/Markdown
 
@@ -96,6 +97,13 @@ A running log of the choices behind "Teach Me This File": what I chose, what I r
 - **The `[app]` channel.** Automatic turns (introduce, explain, wrap-up) have no student message, so the app adds a short user note that starts with `[app]` (for example `[app] Begin step 3.`). The rules say these lines come from the app, never from the student. A student message that starts with `[app]` is rejected with 400, so a student cannot forge one. Rejected: escaping the prefix, which is harder to explain and leaves an odd message in history.
 - **The lesson outline is sent every turn** (titles and objectives of all steps, current step marked). It is small, it lets the introduce turn link to the previous step, and wrap-up recaps only from the outline and the conversation, so it adds no new facts. Rejected: sending every step's passages for wrap-up, which would cost too many tokens. All plan text (title, step, outline), the teacher prompt and passages are escaped so none of them can close the prompt's `<document>`, `<passage>` or `<teacher_instructions>` tags.
 - **`MODEL_ID` stays private to `gemini.js`.** No other module needs it yet, and knip flags unused exports (no dead code).
+
+### D16. Lesson plan: one JSON call, validated by the server, retried once
+
+- **Chose:** `/api/plan` asks Gemini for JSON that matches a schema, then the server checks it (3–8 steps, every step cites at least one passage id that was sent, required text present and at most 500 characters, a BCP-47 language tag). A plan that fails is asked for once more, then the teacher sees "Couldn't build a lesson from this file. Try again." The server assigns step ids `s1…sN` and defaults the duration to 15 minutes. The model can answer `ok: false` with a reason when the file has nothing to teach.
+- **Rejected:** trusting the schema alone; repairing a bad plan (dropping unknown ids or extra steps).
+- **Why:** the schema shapes the output but does not guarantee ids exist or limits hold, and the tutor endpoint rejects plan text over 500 characters and more than 8 steps. Repairing silently could leave a step with no real source passage, which would make citations fake. One retry keeps the cost and the wait bounded.
+- **Prompt:** the rules and the teacher prompt (in a `<teacher_instructions>` fence) are in the system instruction; the document goes in the user turn inside `<document>` as data. The prompt states the step count (one step per 2.5 minutes, 3–8), one idea per step, and a check question answerable from the step's passages. After a first real run, I added "never join two ideas in one step" and "a check question asks one thing", because the small model merged stages (for example "Condensation and Precipitation").
 
 ## What I decided not to do (and why)
 

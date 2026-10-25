@@ -1,14 +1,12 @@
-import { AppError } from '../../http/errors.js'
+import { badRequest } from '../../http/errors.js'
 import { META_MARKER } from '../meta.js'
-import { formatDocument, neutralise } from './document.js'
+import { MAX_STEPS, isOptionalPlanText, isPlanText } from '../planSchema.js'
+import { checkPassage, formatDocument, neutralise } from './document.js'
 
 const MAX_TEACHER_PROMPT = 1000
 const MAX_STUDENT_MESSAGE = 2000
 const MAX_TUTOR_MESSAGE = 4000
-const MAX_PLAN_TEXT = 500
-const MAX_STEPS = 8
 const HISTORY_LIMIT = 12
-const PASSAGE_ID = /^[\w-]{1,32}$/
 // Lines starting with "[app]" are the app's channel to the model (rule 5), so a student may not
 // start any line of a message with it. `m` makes `^` match at every line start.
 const APP_NOTE = /^\s*\[app\]/im
@@ -27,79 +25,65 @@ export const MODE_INSTRUCTIONS = {
 
 const MODES = Object.keys(MODE_INSTRUCTIONS)
 
-function invalid(reason) {
-  return new AppError('BAD_REQUEST', `The request was not valid: ${reason}.`, { status: 400 })
-}
-
 const isObject = (value) => typeof value === 'object' && value !== null && !Array.isArray(value)
 const isCount = (value) => Number.isInteger(value) && value >= 0
-// Plan text (written by the plan model): required, non-blank and short.
-const isPlanText = (value) =>
-  typeof value === 'string' && value.trim() !== '' && value.length <= MAX_PLAN_TEXT
-const isOptionalPlanText = (value) =>
-  value === undefined || (typeof value === 'string' && value.length <= MAX_PLAN_TEXT)
-
-function checkPassage(passage) {
-  if (!isObject(passage) || !PASSAGE_ID.test(passage.id ?? '')) throw invalid('bad passage id')
-  if (!Number.isInteger(passage.page) || passage.page < 1) throw invalid('bad passage page')
-  if (typeof passage.text !== 'string') throw invalid('bad passage text')
-}
 
 function checkOutlineItem(item) {
   if (!isObject(item) || !isPlanText(item.title) || !isPlanText(item.objective)) {
-    throw invalid('each outline item needs a short title and objective')
+    throw badRequest('each outline item needs a short title and objective')
   }
 }
 
 function checkHistoryItem(item) {
   if (!isObject(item) || !['tutor', 'student'].includes(item.role)) {
-    throw invalid('bad history role')
+    throw badRequest('bad history role')
   }
-  if (typeof item.text !== 'string') throw invalid('bad history text')
+  if (typeof item.text !== 'string') throw badRequest('bad history text')
   const max = item.role === 'student' ? MAX_STUDENT_MESSAGE : MAX_TUTOR_MESSAGE
-  if (item.text.length > max) throw invalid(`${item.role} message is too long`)
+  if (item.text.length > max) throw badRequest(`${item.role} message is too long`)
   if (item.role === 'student' && APP_NOTE.test(item.text)) {
-    throw invalid('student messages may not have a line starting with [app]')
+    throw badRequest('student messages may not have a line starting with [app]')
   }
 }
 
 // Throws a 400 AppError for anything the prompt builder cannot safely use.
 export function validateTutorInput(body) {
-  if (!isObject(body)) throw invalid('body must be an object')
+  if (!isObject(body)) throw badRequest('body must be an object')
   const { brief, teacherPrompt, step, outline, history } = body
 
-  if (!isObject(brief) || !isPlanText(brief.language)) throw invalid('brief.language is required')
+  if (!isObject(brief) || !isPlanText(brief.language))
+    throw badRequest('brief.language is required')
   if (![brief.audience, brief.style, brief.notes].every(isOptionalPlanText)) {
-    throw invalid('brief fields must be short text')
+    throw badRequest('brief fields must be short text')
   }
-  if (!(brief.durationMinutes > 0)) throw invalid('brief.durationMinutes must be positive')
+  if (!(brief.durationMinutes > 0)) throw badRequest('brief.durationMinutes must be positive')
   if (typeof teacherPrompt !== 'string' || teacherPrompt.length > MAX_TEACHER_PROMPT) {
-    throw invalid('teacherPrompt must be at most 1,000 characters')
+    throw badRequest('teacherPrompt must be at most 1,000 characters')
   }
-  if (!isPlanText(body.lessonTitle)) throw invalid('lessonTitle is required')
+  if (!isPlanText(body.lessonTitle)) throw badRequest('lessonTitle is required')
   if (!(body.stepNumber >= 1 && body.stepNumber <= body.stepCount && isCount(body.stepCount))) {
-    throw invalid('stepNumber and stepCount are inconsistent')
+    throw badRequest('stepNumber and stepCount are inconsistent')
   }
   if (!isObject(step) || ![step.title, step.objective, step.checkQuestion].every(isPlanText)) {
-    throw invalid('step needs a short title, objective and checkQuestion')
+    throw badRequest('step needs a short title, objective and checkQuestion')
   }
   if (!Array.isArray(step.passages) || step.passages.length === 0) {
-    throw invalid('step needs at least one passage')
+    throw badRequest('step needs at least one passage')
   }
   step.passages.forEach(checkPassage)
   if (!Array.isArray(outline) || outline.length < 1 || outline.length > MAX_STEPS) {
-    throw invalid('outline must list 1 to 8 steps')
+    throw badRequest('outline must list 1 to 8 steps')
   }
-  if (outline.length !== body.stepCount) throw invalid('outline must match stepCount')
+  if (outline.length !== body.stepCount) throw badRequest('outline must match stepCount')
   outline.forEach(checkOutlineItem)
-  if (!MODES.includes(body.mode)) throw invalid('unknown mode')
+  if (!MODES.includes(body.mode)) throw badRequest('unknown mode')
   if (!isCount(body.misses) || !(body.elapsedMinutes >= 0)) {
-    throw invalid('misses and elapsedMinutes must be non-negative')
+    throw badRequest('misses and elapsedMinutes must be non-negative')
   }
-  if (!Array.isArray(history)) throw invalid('history must be an array')
+  if (!Array.isArray(history)) throw badRequest('history must be an array')
   history.forEach(checkHistoryItem)
   if (body.mode === 'guide' && history.at(-1)?.role !== 'student') {
-    throw invalid('a guide turn needs a student message last')
+    throw badRequest('a guide turn needs a student message last')
   }
   return body
 }

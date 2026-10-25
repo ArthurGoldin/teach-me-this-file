@@ -37,6 +37,11 @@ export function appError(code, extra) {
   return new AppError(code, MESSAGES[code], { status: STATUSES[code], ...extra })
 }
 
+// A 400 for a request body the server cannot use, saying what was wrong with it.
+export function badRequest(reason) {
+  return new AppError('BAD_REQUEST', `The request was not valid: ${reason}.`, { status: 400 })
+}
+
 // Gemini puts the retry delay inside the error message JSON, e.g. "retryDelay":"17s".
 function parseRetryDelay(message = '') {
   const match = /"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/.exec(message)

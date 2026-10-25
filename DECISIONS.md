@@ -33,6 +33,7 @@ A running log of the choices behind "Teach Me This File": what I chose, what I r
 - **Chose:** pdf.js in the browser extracts each page's text layer. Pages with no text (scans) and uploaded images are shrunk to JPEG and sent to Gemini once to transcribe (math as LaTeX, tables as Markdown), at most 20 pages.
 - **Rejected:** (a) sending the whole PDF to Gemini to transcribe every page; (b) OCR in the browser with tesseract.js.
 - **Why:** text-layer extraction is instant, free and word-for-word, so most citations are the real text. (a) is slow (every page becomes output tokens; a 50-page file takes minutes and hits the 300 s function limit), long files get cut at 65K output tokens, and every citation would be a model transcription. (b) downloads several MB of language data and is weak on Hebrew, Arabic and math. Transcribed passages are labelled "AI transcription" in the UI so the source is honest.
+- **Verified (2026-10-25, pdfjs-dist 6.4.299, Hebrew PDF printed from Chrome):** pdf.js returns Hebrew in logical order, letters and words not reversed ("מחזור המים הוא התהליך שבו המים נעים…" matches the source). Arabic and PDFs from other producers are not tested.
 
 ### D6. Hosting: one Vercel project (static SPA + Express as one function)
 
@@ -109,7 +110,6 @@ A running log of the choices behind "Teach Me This File": what I chose, what I r
 - Free-tier Gemini content may be used by Google to improve its products. Fine for a demo, not for real student data; a paid key or another provider would be needed in production.
 - Stop ends our stream and our request to Gemini, but the SDK documents abort as client-side only: Google may still finish (and bill) the generation.
 - Formulas in PDFs that have a text layer come out as flat text (only scanned pages get LaTeX transcription).
-- Hebrew/Arabic text order from pdf.js still to be verified (spike planned).
 - The tutor's hidden JSON block depends on the model following instructions; when it does not, that turn has no citation and no progress.
 - Rate limits of the reviewer's free key can interrupt a lesson (shown clearly, with retry).
 

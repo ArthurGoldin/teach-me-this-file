@@ -36,7 +36,7 @@ A running log of the choices behind "Teach Me This File": what I chose, what I r
 
 ### D6. Hosting: one Vercel project (static SPA + Express as one function)
 
-- **Chose:** Vercel Hobby. The built React app is served as static files and the Express app runs as one function on the same origin (no CORS). Locally the same Express app runs with `node`.
+- **Chose:** Vercel Hobby. The built React app is served as static files and the Express app runs as one function on the same origin (no CORS). Locally the same Express app runs inside the Vite dev server (D14).
 - **Rejected:** Render free (one Node service); a split setup (static host + API host).
 - **Why:** Render's free service sleeps after 15 minutes idle and takes up to a minute to wake, which is exactly when a reviewer opens the link. Vercel does not sleep. Its limits (4.5 MB per request, 300 s per call including streaming) fit this design: each tutor turn is a short request, and only text and single page images are uploaded. A split setup adds CORS and two deployments for no benefit.
 
@@ -86,7 +86,7 @@ A running log of the choices behind "Teach Me This File": what I chose, what I r
 
 - **Chose:** `npm run dev` starts only Vite; a small Vite plugin mounts `createApp()` from `server/app.js` as middleware. The page and `/api/*` share one process and one port (5173).
 - **Rejected:** a separate Node process for the API plus a Vite proxy; running both with the `concurrently` package.
-- **Why:** one command, one port, no extra dependency, and the code that runs locally is the same Express app that Vercel runs. Cost: restart the dev server after changing server code.
+- **Why:** one command, one port, no extra dependency, and the code that runs locally is the same Express app that Vercel runs. Cost: restart the dev server after changing server code. `vite preview` serves only the built files and has no API; use `npm run dev` to try the app.
 
 ## What I decided not to do (and why)
 
@@ -134,7 +134,7 @@ Lint, format and checks
 - `globals`: browser and Node global names for the separate client and server configs.
 - `prettier`, `prettier-plugin-tailwindcss`: one formatting style and Tailwind class order, so diffs stay small.
 - `eslint-config-prettier`: turns off ESLint rules that fight Prettier.
-- `knip`: finds unused files, exports and dependencies (the "no dead code" rule).
+- `knip`: finds unused files, exports and dependencies (the "no dead code" rule). Its `ignoreDependencies` lists `tailwindcss` and the two secretlint rule packages: they are used only through a CSS `@import` and a JSON config, which knip cannot see.
 - `secretlint`, `@secretlint/secretlint-rule-preset-recommend`: blocks committed secrets.
 - `@secretlint/secretlint-rule-pattern`: the recommended preset does not detect Gemini `AIza...` keys, so one custom pattern covers them.
 - `husky`, `lint-staged`: run ESLint, Prettier and the secret scan on staged files before each commit.

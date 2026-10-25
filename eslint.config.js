@@ -5,25 +5,22 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import jsxA11y from 'eslint-plugin-jsx-a11y'
 import prettier from 'eslint-config-prettier'
 
-const noSessionStorage = [
-  {
-    object: 'sessionStorage',
-    message: 'Only keyStore.js and persistence.js may use sessionStorage',
-  },
-  {
-    object: 'globalThis',
-    property: 'sessionStorage',
-    message: 'Only keyStore.js and persistence.js may use sessionStorage',
-  },
-  {
-    object: 'window',
-    property: 'sessionStorage',
-    message: 'Only keyStore.js and persistence.js may use sessionStorage',
-  },
-]
-const noLocalStorage = [
-  { object: 'localStorage', message: 'Do not use localStorage (see DECISIONS D11/D12)' },
-]
+const sessionMsg = 'Only keyStore.js and persistence.js may use sessionStorage'
+const localMsg = 'Do not use localStorage (see DECISIONS D11/D12)'
+// Bare identifiers (also catches `const s = sessionStorage`).
+const noLocalGlobal = [{ name: 'localStorage', message: localMsg }]
+const noSessionGlobal = [{ name: 'sessionStorage', message: sessionMsg }]
+// Explicit `window.x` / `globalThis.x` forms.
+const noLocalProps = ['window', 'globalThis'].map((object) => ({
+  object,
+  property: 'localStorage',
+  message: localMsg,
+}))
+const noSessionProps = ['window', 'globalThis'].map((object) => ({
+  object,
+  property: 'sessionStorage',
+  message: sessionMsg,
+}))
 const noFocusedTests = ['describe', 'it', 'test'].flatMap((object) =>
   ['only', 'skip'].map((property) => ({
     object,
@@ -47,11 +44,12 @@ export default [
         'error',
         {
           selector:
-            "CallExpression[callee.object.name=/^(console|log)$/] MemberExpression[object.name='req'][property.name=/^(headers|body)$/]",
+            "CallExpression[callee.object.name=/^(console|log|logger)$/] MemberExpression[object.name='req'][property.name=/^(headers|body)$/]",
           message: 'Never log request headers or bodies: they can contain the API key.',
         },
       ],
-      'no-restricted-properties': ['error', ...noLocalStorage, ...noSessionStorage],
+      'no-restricted-globals': ['error', ...noLocalGlobal, ...noSessionGlobal],
+      'no-restricted-properties': ['error', ...noLocalProps, ...noSessionProps],
     },
   },
   {
@@ -75,19 +73,18 @@ export default [
     rules: { 'no-console': 'warn' },
   },
   {
-    // These two files are the only places allowed to touch sessionStorage (DECISIONS D11/D12).
-    files: ['client/src/api/keyStore.js', 'client/src/lesson/persistence.js'],
-    rules: { 'no-restricted-properties': ['error', ...noLocalStorage] },
-  },
-  {
     files: ['**/*.test.js'],
     rules: {
-      'no-restricted-properties': [
-        'error',
-        ...noLocalStorage,
-        ...noSessionStorage,
-        ...noFocusedTests,
-      ],
+      'no-restricted-properties': ['error', ...noLocalProps, ...noSessionProps, ...noFocusedTests],
+    },
+  },
+  {
+    // Must stay after the test block. These modules (and their tests) are the only places
+    // allowed to touch sessionStorage (DECISIONS D11/D12); localStorage and focused tests stay banned.
+    files: ['client/src/api/keyStore{,.test}.js', 'client/src/lesson/persistence{,.test}.js'],
+    rules: {
+      'no-restricted-globals': ['error', ...noLocalGlobal],
+      'no-restricted-properties': ['error', ...noLocalProps, ...noFocusedTests],
     },
   },
   prettier,

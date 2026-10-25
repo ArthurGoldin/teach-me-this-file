@@ -2,8 +2,8 @@
 
 > Build an AI that turns a file and a prompt into a chat that actually teaches.
 
-| Time | Stack | Deliver |
-|---|---|---|
+| Time          | Stack                             | Deliver                |
+| ------------- | --------------------------------- | ---------------------- |
 | About 4 hours | React, Vite, Tailwind, JavaScript | GitHub repo + live URL |
 
 ---
@@ -18,7 +18,7 @@ You may use AI coding assistants, as we do. But you will have to understand and 
 
 Build a web app where a teacher uploads a file and writes a prompt. The app then opens a chat in which an AI teaches the content of the file to a student, following the teacher's prompt.
 
-Example prompt: *"Teach this to 7th graders, in French. Be Socratic. Keep it under 15 minutes."*
+Example prompt: _"Teach this to 7th graders, in French. Be Socratic. Keep it under 15 minutes."_
 
 The chat must teach. It must not just summarize the file or paste its content. Think about how a good teacher behaves.
 
@@ -59,13 +59,13 @@ Reply to the email you received this assignment with both links, before the dead
 
 ## 6. How we will judge your work
 
-| Criteria | What we look at |
-|---|---|
-| Decisions | Are your choices clear, justified and honest? Do you know your weak points? |
-| Code quality | Readable, simple, consistent, easy to change. No dead code. |
-| Architecture | Clear separation of parts, sensible state, good handling of errors, large files and cost. |
-| UX | Is the flow clear? Does the app feel good while waiting, failing or recovering? |
-| UI | Clean, consistent, polished design, also on mobile. |
+| Criteria              | What we look at                                                                                                                                    |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Decisions             | Are your choices clear, justified and honest? Do you know your weak points?                                                                        |
+| Code quality          | Readable, simple, consistent, easy to change. No dead code.                                                                                        |
+| Architecture          | Clear separation of parts, sensible state, good handling of errors, large files and cost.                                                          |
+| UX                    | Is the flow clear? Does the app feel good while waiting, failing or recovering?                                                                    |
+| UI                    | Clean, consistent, polished design, also on mobile.                                                                                                |
 | Approach to education | Does the AI teach like a good teacher: one step at a time, checks understanding, adapts, stays grounded in the file, follows the teacher's prompt? |
 
 A smaller, polished result is better than a bigger, broken one.

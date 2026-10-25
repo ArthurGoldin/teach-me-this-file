@@ -140,6 +140,12 @@ A running log of the choices behind "Teach Me This File": what I chose, what I r
 - **Why:** the reviewers judge how the app feels while failing and recovering; one obvious next action, reachable without hunting, is that feeling. Each state was walked in the browser with intercepted responses (never by abusing the real API): invalid key, rate limit, model busy, blocked, a stream that ends without `done` (network), real offline, Stop during an automatic introduction, and a reload mid-answer.
 - **Empty answers:** Gemini occasionally ends a tutor turn with no visible text (seen once with an Arabic lesson). The server now sends `MODEL_BUSY` instead of `done`, so the student gets Try again instead of an empty bubble. `MODEL_BUSY` ("a passing problem on Gemini's side") is the closest of the fixed codes; adding a new code for one rare case was not worth it.
 
+### D21. Tables and formulas in lesson text
+
+- **Chose:** a Markdown table keeps readable columns (each as wide as its text, up to 16em) and scrolls sideways inside its bubble or the source panel; the page itself never scrolls sideways on a 390 px phone. A line that is only `$$…$$` is turned into a display formula (remark-math only treats `$$` on their own lines as display math, and models often write it on one line). In a text file (.txt/.md) the rows of a Markdown table are kept together when the text is cut into passages, so a lesson step never gets half a table (before, the tutor of the speed fixture claimed the file "only shows one row").
+- **Rejected:** shrinking tables to fit (unreadable one-word-per-line cells); a full-screen table viewer.
+- **Why:** school material is full of tables and formulas; they must read correctly in English, Hebrew and Arabic lessons. Formulas stay left to right inside right-to-left text (`.katex { direction: ltr }`).
+
 ## What I decided not to do (and why)
 
 - Shareable links / multi-device lessons (D1).

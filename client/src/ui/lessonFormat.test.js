@@ -3,6 +3,7 @@ import {
   formatPages,
   hasAppLine,
   includedSummary,
+  displayMath,
   linkHost,
   originLabel,
   passageHeading,
@@ -113,5 +114,18 @@ describe('linkHost', () => {
     expect(linkHost('/api/config')).toBeNull()
     expect(linkHost('mailto:a@b.org')).toBeNull()
     expect(linkHost('javascript:alert(1)')).toBeNull()
+  })
+})
+
+describe('displayMath', () => {
+  it('turns a line that is only $$…$$ into a display formula block', () => {
+    expect(displayMath('The rule:\n$$v = \\frac{d}{t}$$\nDone.')).toBe(
+      'The rule:\n$$\nv = \\frac{d}{t}\n$$\nDone.',
+    )
+  })
+
+  it('leaves $$ inside a sentence, single-dollar math and existing blocks alone', () => {
+    const text = 'So $$x$$ here, $v = d/t$, and\n$$\ny = 2\n$$'
+    expect(displayMath(text)).toBe(text)
   })
 })

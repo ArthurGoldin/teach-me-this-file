@@ -53,8 +53,10 @@ export default function MessageList({ lesson, sourceId, onShowSource, ...actions
           ))}
         </ol>
       </div>
-      {/* Screen readers hear each finished tutor message once, not every streamed word. */}
-      <p aria-live="polite" className="sr-only">
+      {/* Screen readers hear each finished tutor message once, not every streamed word.
+          Pinned to the left: in an RTL lesson it would otherwise sit 1px past the right edge
+          and give the whole page a horizontal scroll. */}
+      <p aria-live="polite" className="sr-only left-0">
         {announce && announce.id !== restoredId ? `Tutor replied: ${plainText(announce.text)}` : ''}
       </p>
     </div>

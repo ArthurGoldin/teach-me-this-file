@@ -4,7 +4,7 @@ import rehypeKatex from 'rehype-katex'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import 'katex/dist/katex.min.css'
-import { linkHost } from './lessonFormat.js'
+import { displayMath, linkHost } from './lessonFormat.js'
 
 // Model and file text as Markdown: GFM tables and KaTeX math. Raw HTML is never rendered
 // (react-markdown ignores it without rehype-raw), so neither the model nor a file can inject
@@ -59,7 +59,7 @@ export default function Markdown({ text }) {
         rehypePlugins={rehypePlugins}
         components={components}
       >
-        {text}
+        {displayMath(text)}
       </ReactMarkdown>
     </div>
   )

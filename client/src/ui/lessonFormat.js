@@ -109,3 +109,9 @@ export function linkHost(href) {
     return null
   }
 }
+
+// remark-math only shows $$…$$ as a centred display formula when the dollars sit on their own
+// lines; models and transcriptions often write the whole formula on one line, which would render
+// inline. A line that is nothing but $$…$$ is rewritten into that block form.
+export const displayMath = (markdown) =>
+  markdown.replace(/^([ \t]*)\$\$([^$\n]+)\$\$[ \t]*$/gm, '$1$$$$\n$1$2\n$1$$$$')

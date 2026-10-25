@@ -73,4 +73,14 @@ describe('chunkPages', () => {
     )
     expect(allRows).toEqual(rows)
   })
+  it('keeps the rows of a table in a text file together, so a table is never cut mid-way', () => {
+    const intro = 'Speed is distance divided by time. '.repeat(30).trim()
+    const table = [
+      '| Traveller | Distance (km) | Time (h) |',
+      '| --- | --- | --- |',
+      ...Array.from({ length: 5 }, (_, i) => `| Traveller number ${i} | ${i * 10} | ${i} |`),
+    ].join('\n')
+    const passages = chunkPages([{ page: 1, text: `${intro}\n${table}\nThe end.`, origin: 'text' }])
+    expect(passages.some((p) => p.text.includes(table))).toBe(true)
+  })
 })

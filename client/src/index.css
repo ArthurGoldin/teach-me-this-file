@@ -16,9 +16,12 @@ body {
   font-family: var(--font-sans);
 }
 
-:focus-visible {
-  outline: 2px solid var(--color-teal);
-  outline-offset: 2px;
+/* In the base layer, so a component's own focus style (a utility class) can replace it. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-teal);
+    outline-offset: 2px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -77,14 +80,19 @@ body {
   border-inline-start: 3px solid var(--color-teal-pale);
   padding-inline-start: 0.8em;
 }
+/* A table keeps readable columns (each as wide as its text, up to 16em) and scrolls inside its
+   wrapper (Markdown.jsx) instead of squeezing every cell into a narrow phone bubble. */
 .markdown table {
+  width: max-content;
   border-collapse: collapse;
   font-size: 0.92em;
 }
 .markdown :is(th, td) {
+  max-width: 16em;
   border: 1px solid rgb(30 42 51 / 0.15);
   padding: 0.3em 0.6em;
   text-align: start;
+  vertical-align: top;
 }
 .markdown th {
   font-weight: 600;

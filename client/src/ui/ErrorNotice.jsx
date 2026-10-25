@@ -4,6 +4,7 @@ const ACTION_LABELS = {
   retry: 'Try again',
   settings: 'Open settings',
   'pick-file': 'Choose another file',
+  reload: 'Reload page',
 }
 
 // An error with the one action that fixes it (design §9). `onAction` gets the action name.

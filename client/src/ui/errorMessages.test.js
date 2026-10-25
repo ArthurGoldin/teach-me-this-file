@@ -29,6 +29,14 @@ describe('messageFor', () => {
     expect(messageFor('CORRUPT_FILE', { fileType: 'TXT' }).text).not.toMatch(/PDF|password/)
   })
 
+  it('offers a reload when part of the app failed to download', () => {
+    expect(messageFor('NETWORK', { reloadNeeded: true })).toEqual({
+      text: 'The app was updated or the connection dropped. Reload the page to continue.',
+      action: 'reload',
+    })
+    expect(messageFor('NETWORK').action).toBe('retry')
+  })
+
   it('sends key problems to the settings', () => {
     expect(messageFor('NO_KEY').action).toBe('settings')
     expect(messageFor('INVALID_KEY').action).toBe('settings')

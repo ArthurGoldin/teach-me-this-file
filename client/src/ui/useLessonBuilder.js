@@ -30,8 +30,6 @@ export function useLessonBuilder() {
   const [range, setRange] = useState(null)
   const [error, setError] = useState(null)
   const controllerRef = useRef(null)
-  // The last picked file, so "Try again" after a read failure can read it again.
-  const lastFileRef = useRef(null)
   // The open document (a parsed PDF holds memory and a worker until destroyed).
   const rawRef = useRef(null)
 
@@ -70,7 +68,6 @@ export function useLessonBuilder() {
 
   async function readSelectedFile(file) {
     const signal = startTask()
-    lastFileRef.current = file
     replaceRaw(null)
     setRange(null)
     setStage('reading')
@@ -88,14 +85,10 @@ export function useLessonBuilder() {
       // readFile only throws DocumentErrors; anything else is still a problem with this file,
       // not with the server.
       const code = err instanceof DocumentError ? err.code : 'CORRUPT_FILE'
-      fail({ code }, signal, { fileType: extensionOf(file.name) })
+      fail({ code }, signal, { fileType: extensionOf(file.name), reloadNeeded: err.reloadNeeded })
     } finally {
       if (!signal.aborted) setProgress(null)
     }
-  }
-
-  function rereadFile() {
-    if (lastFileRef.current) readSelectedFile(lastFileRef.current)
   }
 
   async function build(teacherPrompt) {
@@ -140,7 +133,6 @@ export function useLessonBuilder() {
     setRange,
     error,
     readSelectedFile,
-    rereadFile,
     build,
     cancel,
   }

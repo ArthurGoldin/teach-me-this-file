@@ -20,10 +20,17 @@ function rateLimited(retryAfterSeconds) {
 
 /**
  * @param {string} code one of the shared error codes
- * @param {{ retryAfterSeconds?: number, fileType?: string }} [details]
- * @returns {{ text: string, action: 'retry' | 'settings' | 'pick-file' | null }}
+ * @param {{ retryAfterSeconds?: number, fileType?: string, reloadNeeded?: boolean }} [details]
+ *   reloadNeeded: part of the app's own code failed to download (see readFile.js)
+ * @returns {{ text: string, action: 'retry' | 'settings' | 'pick-file' | 'reload' | null }}
  */
-export function messageFor(code, { retryAfterSeconds, fileType } = {}) {
+export function messageFor(code, { retryAfterSeconds, fileType, reloadNeeded } = {}) {
+  if (reloadNeeded) {
+    return {
+      text: 'The app was updated or the connection dropped. Reload the page to continue.',
+      action: 'reload',
+    }
+  }
   switch (code) {
     case 'NO_KEY':
       return { text: 'Paste a Gemini API key to start.', action: 'settings' }

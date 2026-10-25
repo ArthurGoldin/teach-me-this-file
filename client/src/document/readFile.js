@@ -28,8 +28,11 @@ async function loadPdfModule() {
     // pdf.js is large (~430 kB): load it only when a PDF is picked, so the first screen stays fast.
     return await import('./pdf.js')
   } catch {
-    // The chunk could not be downloaded (offline, or a new deploy replaced it).
-    throw new DocumentError('NETWORK', 'Could not load the PDF reader.')
+    // The chunk could not be downloaded (offline, or a new deploy replaced it). Browsers cache a
+    // failed import, so only a page reload can fix it.
+    const error = new DocumentError('NETWORK', 'Could not load the PDF reader.')
+    error.reloadNeeded = true
+    throw error
   }
 }
 

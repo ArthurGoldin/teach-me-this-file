@@ -99,11 +99,9 @@ export default function SetupScreen({ hasKey, onOpenSettings, onLessonReady }) {
   }
 
   function handleAction(action) {
-    // Retry repeats what failed: reading the file, or building the lesson.
-    if (action === 'retry') {
-      if (raw) handleBuild()
-      else builder.rereadFile()
-    }
+    // Only a failed build offers retry: read failures are about the file (or need a reload).
+    if (action === 'retry') handleBuild()
+    if (action === 'reload') window.location.reload()
     if (action === 'settings') onOpenSettings(null)
     if (action === 'pick-file') fileInputRef.current?.click()
   }

@@ -154,6 +154,7 @@ Progress = {
   stepIndex: 2,              // 0-based; UI shows "Step 3 of 6"
   steps: [{ status: 'done' | 'explained' | 'current' | 'todo', misses: 0, turns: 0 }],
   status: 'teaching' | 'wrapping-up' | 'complete',
+  pendingAuto: 'introduce' | 'wrap-up' | null,   // an automatic tutor turn the UI must start
   startedAt: 1792921953000,
 }
 
@@ -162,6 +163,7 @@ Message = {
   role: 'tutor' | 'student',
   text: '…',
   stepId: 's3',
+  mode: 'guide',             // tutor only: the mode the turn ran in (used by the rules and Retry)
   passageIds: ['p3-1'],      // tutor only; validated; [] if none / meta missing
   state: 'streaming' | 'done' | 'stopped' | 'failed',
   error?: { code, message, retryAfterSeconds? },
@@ -313,7 +315,7 @@ All server errors are JSON `{ error: { code, message, retryAfterSeconds? } }` (o
 | `RATE_LIMITED` | Gemini 429 | "Gemini's free-tier limit was reached. Try again in N s." Retry button with countdown |
 | `MODEL_BUSY` | Gemini 500/503 | "Gemini is busy right now." Retry button |
 | `BLOCKED` | prompt/response blocked by safety | "Gemini declined to answer this. Try rephrasing." |
-| `NETWORK` / `TIMEOUT` | fetch failure, offline, server timeout | "Connection lost." Partial text kept, Retry |
+| `NETWORK` | fetch failure, offline, or a stream that ends without `done` (e.g. the function hit its 300 s limit) | "Connection lost." Partial text kept, Retry |
 | `PAYLOAD_TOO_LARGE` | 413 | "This page image is too large." (should not happen; client downscales) |
 | `UNSUPPORTED_FILE` | client (type check) | "DOCX isn't supported yet. Export it as PDF and try again." (per type) |
 | `FILE_TOO_LARGE` | client (> 50 MB) | Size message |

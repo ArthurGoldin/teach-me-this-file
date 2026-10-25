@@ -44,5 +44,13 @@
     "tailwindcss": "^4.3.3",
     "vite": "^8.3.5",
     "vitest": "^5.0.5"
+  },
+  "lint-staged": {
+    "*.{js,jsx}": [
+      "eslint --max-warnings=0",
+      "prettier --write"
+    ],
+    "*.{json,md,css,html}": "prettier --write",
+    "*": "secretlint"
   }
 }

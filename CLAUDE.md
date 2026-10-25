@@ -42,14 +42,20 @@ Set these up in the scaffolding task, before any feature code. Verify current pa
 
 ## Commands
 
-<!-- Fill in once the project is scaffolded (or run /init to update this file). -->
-- Dev: TBD
-- Test: TBD
-- Build: TBD
-- Lint: `npm run lint` (TBD)
-- Format: `npm run format` (TBD)
+- Dev: `npm run dev` (one process: Vite plus the Express app as middleware, on :5173)
+- Test: `npm test`
+- Build: `npm run build`
+- Lint: `npm run lint`
+- Format: `npm run format`
 - Dead code: `npx knip`
+- Secret scan: `npm run secrets`
 
 ## Project map
 
-<!-- Fill in after the design doc is approved. -->
+- `client/src/ui/`: React components only (no fetch, no prompt text, no lesson rules)
+- `client/src/lesson/`: reducer, selectors, persistence (pure, unit-tested)
+- `client/src/document/`: file reading, chunking, token budget
+- `client/src/api/`: fetch client, SSE parser, keyStore (the only place the key may touch sessionStorage)
+- `server/`: `app.js` (Express app, shared by dev and Vercel), `http/` (key, errors, SSE, logger), `ai/` (Gemini calls, prompts, response parsing)
+- `api/index.js`: Vercel entry (added in the deploy task)
+- `docs/`: assignment, design, plan. Full layout in `docs/design.md` section 4.1

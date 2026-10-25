@@ -1,8 +1,8 @@
-// The file's text is untrusted. Any tag that could close or fake our <document>/<passage>
-// wrapper is escaped, so the model always sees passage text as data inside one block.
-const WRAPPER_TAG = /<(\/?)(document|passage)/gi
+// Untrusted or model-written text must not close or fake the prompt's own wrapper tags
+// (<document>, <passage>, <teacher_instructions>). Escaping their `<` keeps such text as data.
+const WRAPPER_TAG = /<(\/?)(document|passage|teacher_instructions)/gi
 
-function neutralise(text) {
+export function neutralise(text) {
   return text.replace(WRAPPER_TAG, '&lt;$1$2')
 }
 

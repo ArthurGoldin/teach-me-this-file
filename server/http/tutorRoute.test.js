@@ -1,3 +1,4 @@
+import { ServerResponse } from 'node:http'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { createApp } from '../app.js'
 
@@ -19,6 +20,7 @@ const body = {
     checkQuestion: 'Pourquoi ?',
     passages: [{ id: 'p3-1', page: 3, text: 'Cold air condenses vapour.', origin: 'text' }],
   },
+  outline: Array.from({ length: 6 }, (_, i) => ({ title: `Step ${i + 1}`, objective: 'Learn' })),
   mode: 'guide',
   misses: 0,
   elapsedMinutes: 5,
@@ -113,7 +115,7 @@ it('sends an error event when gemini fails mid-stream', async () => {
   expect(events.at(-1).data.message).toBeTruthy()
 })
 
-it('aborts the gemini call when the client disconnects', async () => {
+it('aborts the gemini call when the client disconnects and writes nothing after', async () => {
   let receivedSignal
   let firstChunkSent
   const sent = new Promise((resolve) => (firstChunkSent = resolve))
@@ -123,14 +125,24 @@ it('aborts the gemini call when the client disconnects', async () => {
     firstChunkSent()
     await new Promise((resolve) => signal.addEventListener('abort', resolve))
   })
+  // Record writes made to an already-closed response, at the moment they happen.
+  const lateWrites = []
+  const write = ServerResponse.prototype.write
+  vi.spyOn(ServerResponse.prototype, 'write').mockImplementation(function (...args) {
+    if (this.destroyed) lateWrites.push(String(args[0]))
+    return write.apply(this, args)
+  })
   const controller = new AbortController()
   const res = await post({ signal: controller.signal })
-  const reader = res.body.getReader()
-  await reader.read()
+  await res.body.getReader().read()
   await sent
   controller.abort()
 
   await vi.waitFor(() => expect(receivedSignal.aborted).toBe(true), { timeout: 1000 })
+  const logged = () => process.stdout.write.mock.calls.map(([line]) => String(line)).join('')
+  await vi.waitFor(() => expect(logged()).toContain('"event":"tutor_turn"'), { timeout: 1000 })
+  expect(lateWrites).toEqual([])
+  expect(logged()).toContain('"code":"ABORTED"')
 })
 
 it('rejects a request without a key with 401 NO_KEY', async () => {

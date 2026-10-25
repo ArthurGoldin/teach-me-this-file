@@ -88,6 +88,14 @@ A running log of the choices behind "Teach Me This File": what I chose, what I r
 - **Rejected:** a separate Node process for the API plus a Vite proxy; running both with the `concurrently` package.
 - **Why:** one command, one port, no extra dependency, and the code that runs locally is the same Express app that Vercel runs. Cost: restart the dev server after changing server code. `vite preview` serves only the built files and has no API; use `npm run dev` to try the app.
 
+### D15. Tutor prompt safeguards
+
+- **Whitespace before the marker is held back.** The route sends each delta without its trailing whitespace and puts that whitespace in front of the next delta. Any whitespace left at the end is dropped. The newline the model writes before `<<<META>>>` therefore never reaches the student. Rejected: changing the meta splitter, which would mix two jobs in one tested module.
+- **Passage ids are validated** (`/^[\w-]{1,32}$/`) before they go into `<passage id="…">`. They come from the browser, so a crafted id could otherwise break out of the attribute and inject text into the prompt.
+- **The `[app]` channel.** Automatic turns (introduce, explain, wrap-up) have no student message, so the app adds a short user note that starts with `[app]` (for example `[app] Begin step 3.`). The rules say these lines come from the app, never from the student. A student message that starts with `[app]` is rejected with 400, so a student cannot forge one. Rejected: escaping the prefix, which is harder to explain and leaves an odd message in history.
+- **The lesson outline is sent every turn** (titles and objectives of all steps, current step marked). It is small, it lets the introduce turn link to the previous step, and wrap-up recaps only from the outline and the conversation, so it adds no new facts. Rejected: sending every step's passages for wrap-up, which would cost too many tokens. All plan text (title, step, outline), the teacher prompt and passages are escaped so none of them can close the prompt's `<document>`, `<passage>` or `<teacher_instructions>` tags.
+- **`MODEL_ID` stays private to `gemini.js`.** No other module needs it yet, and knip flags unused exports (no dead code).
+
 ## What I decided not to do (and why)
 
 - Shareable links / multi-device lessons (D1).

@@ -32,6 +32,11 @@ export function createTutorRoute({ createGemini }) {
       }
       const stream = gemini.streamText({ ...buildTutorRequest(input), signal: controller.signal })
       for await (const chunk of stream) emit(splitter.push(chunk))
+      // A stream can end quietly after an abort; the client is gone, so write nothing more.
+      if (controller.signal.aborted) {
+        code = 'ABORTED'
+        return
+      }
       const { text, metaRaw } = splitter.end()
       emit(text)
       const meta = parseMeta(

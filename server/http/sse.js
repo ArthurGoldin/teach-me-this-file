@@ -9,7 +9,9 @@ export function openSse(res) {
   })
   res.flushHeaders()
   return {
+    // After a disconnect there is nobody to write to, so late events are dropped.
     send(event, data) {
+      if (res.writableEnded || res.destroyed) return
       res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
     },
   }

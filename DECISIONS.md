@@ -1,0 +1,94 @@
+# Decisions
+
+A running log of the choices behind "Teach Me This File": what I chose, what I rejected, and why. Newest entries are added at the end of each section. The full design is in [docs/design.md](docs/design.md).
+
+## Main choices
+
+### D1. The teacher and the student use the same browser
+- **Chose:** the teacher sets up the lesson, then the same screen becomes the student's chat. All lesson data stays in that browser tab.
+- **Rejected:** a shareable link for students on other devices.
+- **Why:** a link means storing files and lessons on a server (database, expiry, privacy of school material). That is about an extra hour and a second hosting service. Same-browser handoff fits the 4-hour budget and lets the server store nothing.
+
+### D2. The teacher cannot edit the lesson plan
+- **Chose:** the plan is generated and used as is.
+- **Rejected:** a review/edit screen before the lesson starts.
+- **Why:** time. It is a real gap (a teacher would want to check the plan), listed under weaknesses.
+
+### D3. One AI provider: Google Gemini, model `gemini-3.8-flash`
+- **Chose:** Gemini only. Every call to the SDK lives in one server file, and the model ID is one constant (`gemini-3.5-flash-lite` is the lighter fallback).
+- **Rejected:** a thin adapter for Gemini + Groq; OpenRouter.
+- **Why:** Gemini has a free tier and reads PDFs and images natively (useful for scanned pages, formulas and tables), with a 1M-token context. Groq's free tier has no confirmed PDF/image input, so behaviour would differ by provider and double the testing. OpenRouter's free models allow 50 requests per day without paid credits and can disappear without notice. Checked on 2026-10-25 on Google's models and pricing pages.
+
+### D4. File types: PDF, images (JPG/PNG/WebP), TXT/Markdown
+- **Chose:** these three families. DOCX and anything else get a clear "export as PDF" message.
+- **Rejected:** DOCX through the `mammoth` library.
+- **Why:** PDF and phone photos cover most school material. DOCX would add a dependency and loses equations and images. TXT/MD costs nothing and is useful for our own tests.
+
+### D5. Reading files: hybrid (text layer in the browser, AI transcription for scans)
+- **Chose:** pdf.js in the browser extracts each page's text layer. Pages with no text (scans) and uploaded images are shrunk to JPEG and sent to Gemini once to transcribe (math as LaTeX, tables as Markdown), at most 20 pages.
+- **Rejected:** (a) sending the whole PDF to Gemini to transcribe every page; (b) OCR in the browser with tesseract.js.
+- **Why:** text-layer extraction is instant, free and word-for-word, so most citations are the real text. (a) is slow (every page becomes output tokens; a 50-page file takes minutes and hits the 300 s function limit), long files get cut at 65K output tokens, and every citation would be a model transcription. (b) downloads several MB of language data and is weak on Hebrew, Arabic and math. Transcribed passages are labelled "AI transcription" in the UI so the source is honest.
+
+### D6. Hosting: one Vercel project (static SPA + Express as one function)
+- **Chose:** Vercel Hobby. The built React app is served as static files and the Express app runs as one function on the same origin (no CORS). Locally the same Express app runs with `node`.
+- **Rejected:** Render free (one Node service); a split setup (static host + API host).
+- **Why:** Render's free service sleeps after 15 minutes idle and takes up to a minute to wake, which is exactly when a reviewer opens the link. Vercel does not sleep. Its limits (4.5 MB per request, 300 s per call including streaming) fit this design: each tutor turn is a short request, and only text and single page images are uploaded. A split setup adds CORS and two deployments for no benefit.
+
+### D7. Architecture: the browser owns the lesson, the server is stateless
+- **Chose:** the browser reads the file and keeps the passages, plan, progress and messages (a reducer). The server has three working endpoints (`/api/transcribe`, `/api/plan`, `/api/tutor`) plus `/api/config`, which only says whether a host key is set, and remembers nothing between requests. Each request carries what that call needs (for a tutor turn: brief, current step, its passages, recent messages).
+- **Rejected:** a server that parses the upload and stores the lesson in a database.
+- **Why:** Vercel functions share no memory between requests, so server-side lessons need a database, and uploading whole files hits the 4.5 MB limit. A stateless server also makes "we never store your key or your files" easy to keep. Cost: each tutor request resends a few KB of passages. If sharing were needed later, the lesson state is already a plain object that could be saved behind an ID without changing the reducer, prompts or UI.
+
+### D8. Lesson signals: a hidden JSON block after the tutor's message
+- **Chose:** the tutor streams its message, then writes `<<<META>>>` and a small JSON object (`understanding`, `passageIds`). A tested parser on the server hides the marker from the stream and sends the parsed result as a final event.
+- **Rejected:** (a) a second, non-streamed "grading" call per turn with guaranteed JSON; (b) Gemini function calling during the stream.
+- **Why:** one call per turn is faster and uses half the free-tier quota of (a). The parser is a small pure function that is easy to test and explain. (b) depends on provider-specific streaming behaviour and is harder to test. If the block is missing or broken (or the user pressed Stop), the turn simply does not count: no progress and no citation, never a guess. (a) is the upgrade path if evals show the block is unreliable.
+
+### D9. The model judges understanding, the app decides what happens
+- **Chose:** each tutor turn reports `understanding: yes | partial | no | none`. The reducer applies fixed rules: yes → next step; partial/no → count a miss; after 2 misses (or 4 turns on a step) the tutor is told to explain with a worked example and move on.
+- **Rejected:** "Got it / Explain again" buttons only; letting the model decide everything.
+- **Why:** checking understanding needs the model, but progress must be predictable and testable, and the brief requires progress in app state. The cap stops a student getting stuck forever.
+
+### D10. Long documents: planning budget + page-range picker
+- **Chose:** the plan call gets at most ~100K tokens of passages. If a file is bigger, or has more than 20 scanned pages, the setup screen shows a page range ("Pages 1–180 of 412"), pre-filled and editable. What is left out is always shown.
+- **Rejected:** silently cutting the file; summarising the whole book first.
+- **Why:** a 15-minute lesson cannot cover 400 pages anyway, so the teacher should choose which part. Summarising first needs many calls (rate limits, slow) and produces summaries that are not real sources.
+
+### D11. API key: memory by default, opt-in "remember for this tab"
+- **Chose:** the key lives in memory. A checkbox can keep it in sessionStorage (cleared when the tab closes). It is sent in an `X-Gemini-Key` header on every request, never in a URL. The server can also use a `GEMINI_API_KEY` host variable when no key is sent.
+- **Rejected:** memory only (a refresh loses the key mid-lesson); sessionStorage always (stores the key without asking).
+- **Why:** strict default, convenience only when the user asks for it. Headers, not query strings, because hosting platforms log URLs.
+
+### D12. Lesson survives a refresh (sessionStorage)
+- **Chose:** the lesson state is saved to sessionStorage on each change and restored on load. Closing the tab clears it.
+- **Rejected:** losing the lesson on refresh; localStorage with "resume later".
+- **Why:** an accidental pull-to-refresh on a phone should not end a lesson. localStorage would leave school material on shared computers. Page images of scans are not saved (too large); after a refresh the source panel says so.
+
+### D13. Visual direction: "Lesson route"
+- **Chose:** the plan is drawn as a route line with one stop per step and an amber "you are here". One typeface (Lexend), teal and amber on white, familiar chat bubbles, a source chip under tutor messages.
+- **Rejected:** "Exercise book" (ruled notebook look) and "Highlighter" (source-first) directions.
+- **Why:** progress is a required feature and the route makes it the memorable element. Lexend was designed to make reading easier, which suits students.
+
+## What I decided not to do (and why)
+- Shareable links / multi-device lessons (D1).
+- Teacher editing of the plan (D2).
+- DOCX support (D4).
+- Multiple AI providers (D3).
+- Accounts, lesson history, analytics: not needed to show the teaching loop.
+
+## Known weaknesses
+- Free-tier Gemini content may be used by Google to improve its products. Fine for a demo, not for real student data; a paid key or another provider would be needed in production.
+- Stop ends our stream and our request to Gemini, but the SDK documents abort as client-side only: Google may still finish (and bill) the generation.
+- Formulas in PDFs that have a text layer come out as flat text (only scanned pages get LaTeX transcription).
+- Hebrew/Arabic text order from pdf.js still to be verified (spike planned).
+- The tutor's hidden JSON block depends on the model following instructions; when it does not, that turn has no citation and no progress.
+- Rate limits of the reviewer's free key can interrupt a lesson (shown clearly, with retry).
+
+## With 4 more hours
+_To be filled in at the end._
+
+## How I know it works
+_Test scenarios with transcripts and pass/fail, filled in during verification._
+
+## Tooling and dependencies
+_Each dependency and lint rule gets a one-line justification here as it is added._

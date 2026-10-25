@@ -30,3 +30,8 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+# Superpowers brainstorm mockups (local only)
+.superpowers/
+
+# Playwright MCP screenshots/logs (local only)
+.playwright-mcp/

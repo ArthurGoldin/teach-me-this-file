@@ -31,9 +31,9 @@ export default function RouteLine({ steps, progress }) {
           <li
             key={step.id}
             className={`flex items-center ${i === 0 ? '' : 'flex-1'}`}
-            aria-label={current ? label : `${label}, ${STATUS_TEXT[status]}`}
             aria-current={current ? 'step' : undefined}
           >
+            <span className="sr-only">{current ? label : `${label}, ${STATUS_TEXT[status]}`}</span>
             {i > 0 && (
               <span
                 aria-hidden="true"

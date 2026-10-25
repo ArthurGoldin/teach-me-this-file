@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import { streamTutor } from '../api/client.js'
 import { lessonReducer } from '../lesson/reducer.js'
-import { buildTutorInput, isStreaming, nextStudentTurnMode } from '../lesson/selectors.js'
+import {
+  buildTutorInput,
+  canContinue,
+  isStreaming,
+  nextStudentTurnMode,
+} from '../lesson/selectors.js'
 
 // Runs tutor turns against /api/tutor and turns the stream into lesson actions (design §8).
 // The reducer decides what happens next; this hook only does the I/O. At most one turn is in
@@ -23,26 +28,29 @@ export function useTutor(state, dispatch) {
       controllerRef.current = controller
       const input = buildTutorInput(lesson, mode, Date.now())
       dispatch({ type: 'tutorStarted', id, mode })
+      // After unmount (New lesson) there is no lesson left to update.
+      const update = (action) => {
+        if (!disposedRef.current) dispatch(action)
+      }
       let meta = null
       try {
         await streamTutor(input, {
           signal: controller.signal,
-          onDelta: (text) => dispatch({ type: 'tutorDelta', id, text }),
+          onDelta: (text) => update({ type: 'tutorDelta', id, text }),
           onMeta: (value) => {
             meta = value
           },
         })
-        dispatch({ type: 'tutorFinished', id, meta })
+        update({ type: 'tutorFinished', id, meta })
       } catch (err) {
-        // After unmount (New lesson) there is no lesson left to update.
-        if (disposedRef.current) return
-        if (err?.name === 'AbortError') {
-          dispatch({ type: 'tutorStopped', id })
+        // Our own signal says whether this was Stop (or unmount), whatever the error looks like.
+        if (controller.signal.aborted) {
+          update({ type: 'tutorStopped', id })
         } else {
           const { code = 'INTERNAL', message = '', retryAfterSeconds } = err ?? {}
           // `at` lets the rate-limit countdown (useSecondsLeft) survive a re-render or reload.
           const error = { code, message, retryAfterSeconds, at: Date.now() }
-          dispatch({ type: 'tutorFailed', id, error })
+          update({ type: 'tutorFailed', id, error })
         }
       } finally {
         if (controllerRef.current === controller) controllerRef.current = null
@@ -85,16 +93,17 @@ export function useTutor(state, dispatch) {
 
   const stop = useCallback(() => controllerRef.current?.abort(), [])
 
-  // Re-runs a failed turn, or a stopped automatic one, in the same mode. Neither changed
-  // progress, so the current step is still that message's step, and the history still ends
-  // where it did (failed turns are left out of it).
+  // Re-runs a failed turn, or a stopped one the UI offers to continue, in the same mode. Neither
+  // changed progress, so the current step is still that message's step. The message itself is
+  // left out of the request, so the history ends where it did before that turn.
   const retry = useCallback(
     (messageId) => {
       const lesson = stateRef.current
       const message = lesson.messages.find(({ id }) => id === messageId)
-      const rerunnable = message?.state === 'failed' || message?.state === 'stopped'
+      const rerunnable = message?.state === 'failed' || (message && canContinue(lesson, message))
       if (!rerunnable || controllerRef.current) return
-      runTurn(lesson, message.mode)
+      const messages = lesson.messages.filter(({ id }) => id !== messageId)
+      runTurn({ ...lesson, messages }, message.mode)
     },
     [runTurn],
   )

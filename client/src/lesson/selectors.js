@@ -1,6 +1,7 @@
 // Read-only views of the lesson state, and the body of a /api/tutor request.
 
-// After this many wrong or partial answers on a step, the tutor explains it and moves on.
+// After this many wrong or partial answers on a step, the tutor explains it and moves on: the
+// last guide turn is told to explain (lastAttempt) and the reducer then advances.
 export const MAX_MISSES = 2
 // After this many student messages on a step, the tutor explains it and moves on.
 export const MAX_TURNS = 4
@@ -14,10 +15,28 @@ export const progressLabel = (state) =>
 
 export const isStreaming = (state) => state.messages.some(({ state: s }) => s === 'streaming')
 
-// The mode of the tutor turn that answers a student message.
+// The student may write when the tutor is not answering and no automatic turn is due.
+export const canStudentSend = (state) =>
+  state.progress.status === 'teaching' && state.progress.pendingAuto === null && !isStreaming(state)
+
+// A stopped turn the UI offers to run again ("Continue the lesson"): an automatic turn (its
+// stop leaves the student without a question, and a stopped wrap-up would never end the
+// lesson), or any turn stopped before its first word (e.g. by a reload mid-answer). Only the
+// latest message: anything after it has moved the lesson on.
+const AUTO_MODES = ['introduce', 'wrap-up']
+
+export const canContinue = (state, message) =>
+  message.role === 'tutor' &&
+  message.state === 'stopped' &&
+  (AUTO_MODES.includes(message.mode) || message.text === '') &&
+  state.messages.at(-1)?.id === message.id
+
+// The mode of the tutor turn that answers a student message. Wrong answers are handled inside
+// guide turns (the last attempt explains, see the reducer); explain is for students who keep
+// talking around the check question.
 export function nextStudentTurnMode(state) {
-  const { misses, turns } = state.progress.steps[state.progress.stepIndex]
-  return misses >= MAX_MISSES || turns >= MAX_TURNS ? 'explain' : 'guide'
+  const { turns } = state.progress.steps[state.progress.stepIndex]
+  return turns >= MAX_TURNS ? 'explain' : 'guide'
 }
 
 export const elapsedMinutes = (state, now) => (now - state.progress.startedAt) / 60_000
@@ -42,6 +61,7 @@ function history(state) {
 export function buildTutorInput(state, mode, now) {
   const { plan, progress } = state
   const step = currentStep(state)
+  const { misses } = progress.steps[progress.stepIndex]
   return {
     brief: plan.brief,
     teacherPrompt: state.teacherPrompt,
@@ -56,7 +76,9 @@ export function buildTutorInput(state, mode, now) {
     },
     outline: plan.steps.map(({ title, objective }) => ({ title, objective })),
     mode,
-    misses: progress.steps[progress.stepIndex].misses,
+    misses,
+    // One more wrong or partial answer ends the step (reducer), so the tutor must explain now.
+    lastAttempt: mode === 'guide' && misses === MAX_MISSES - 1,
     elapsedMinutes: elapsedMinutes(state, now),
     history: history(state),
   }

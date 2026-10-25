@@ -1,12 +1,40 @@
-import { useCallback, useEffect, useReducer, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useReducer, useState } from 'react'
 import { getConfig } from '../api/client.js'
 import { getKey } from '../api/keyStore.js'
 import { loadLesson, saveLesson } from '../lesson/persistence.js'
 import { lessonReducer } from '../lesson/reducer.js'
-import { isStreaming } from '../lesson/selectors.js'
-import LessonScreen from './LessonScreen.jsx'
+import ErrorNotice from './ErrorNotice.jsx'
 import SettingsDialog from './SettingsDialog.jsx'
 import SetupScreen from './SetupScreen.jsx'
+
+// The lesson screen (with react-markdown and KaTeX) is a separate chunk, so the setup screen
+// loads fast. If the chunk cannot be downloaded (new deploy, connection lost), say so and offer
+// a reload instead of crashing; the lesson is safe in sessionStorage.
+function LessonCodeMissing({ appBar }) {
+  return (
+    <>
+      {appBar}
+      <div className="mx-auto w-full max-w-2xl px-4 pt-8 sm:px-6">
+        <ErrorNotice
+          error={{ code: 'INTERNAL', reloadNeeded: true }}
+          onAction={() => window.location.reload()}
+        />
+      </div>
+    </>
+  )
+}
+
+const LessonScreen = lazy(() =>
+  import('./LessonScreen.jsx').catch(() => ({ default: LessonCodeMissing })),
+)
+
+function LessonLoading() {
+  return (
+    <p role="status" className="flex flex-1 items-center justify-center text-slate/60">
+      Opening the lesson…
+    </p>
+  )
+}
 
 function KeyIcon() {
   return (
@@ -26,9 +54,11 @@ export default function App() {
   const [settings, setSettings] = useState(null)
 
   // Keep the lesson across a reload. A failed save is reported, never silent (design §9).
-  // Not while a turn streams: that would rewrite the whole lesson on every delta. The save
-  // after the turn ends covers it, and a reload mid-stream restores the turn as stopped.
-  const skipSave = lesson !== null && isStreaming(lesson)
+  // Not while tutor text is streaming in: that would rewrite the whole lesson on every chunk.
+  // The save when a turn starts (student message + empty tutor stub) and the one when it ends
+  // cover it: a reload mid-answer restores the stub as stopped, with "Continue the lesson".
+  const skipSave =
+    lesson !== null && lesson.messages.some(({ state, text }) => state === 'streaming' && text)
   useEffect(() => {
     if (skipSave) return
     // The outcome of the write is only known after it happens, so it has to be stored here;
@@ -61,9 +91,8 @@ export default function App() {
   const hasKey = hasUserKey || hasServerKey
   const keyLabel = hasUserKey ? 'Key set' : hasServerKey ? 'Server key' : 'Add API key'
 
-  return (
-    // The lesson fills the screen exactly (its chat scrolls inside); setup scrolls the page.
-    <div className={`flex flex-col ${lesson ? 'h-dvh' : 'min-h-dvh'}`}>
+  const appBar = (
+    <>
       <header className="shrink-0 border-b border-surface">
         <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <span className="flex items-center gap-2 font-semibold text-teal">
@@ -91,15 +120,37 @@ export default function App() {
           This lesson is too large to survive a page refresh.
         </p>
       )}
+    </>
+  )
 
+  return (
+    <div className="flex min-h-dvh flex-col">
       {lesson ? (
-        <LessonScreen lesson={lesson} dispatch={dispatch} onOpenSettings={openSettings} />
+        // The lesson fills the screen (its chat scrolls inside) and places the app bar itself.
+        <Suspense
+          fallback={
+            <>
+              {appBar}
+              <LessonLoading />
+            </>
+          }
+        >
+          <LessonScreen
+            lesson={lesson}
+            dispatch={dispatch}
+            appBar={appBar}
+            onOpenSettings={openSettings}
+          />
+        </Suspense>
       ) : (
-        <SetupScreen
-          hasKey={hasKey}
-          onOpenSettings={openSettings}
-          onLessonReady={handleLessonReady}
-        />
+        <>
+          {appBar}
+          <SetupScreen
+            hasKey={hasKey}
+            onOpenSettings={openSettings}
+            onLessonReady={handleLessonReady}
+          />
+        </>
       )}
 
       {settings && (

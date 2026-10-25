@@ -23,6 +23,7 @@ const body = {
   outline: Array.from({ length: 6 }, (_, i) => ({ title: `Step ${i + 1}`, objective: 'Learn' })),
   mode: 'guide',
   misses: 0,
+  lastAttempt: false,
   elapsedMinutes: 5,
   history: [{ role: 'student', text: 'Elle disparaît ?' }],
 }

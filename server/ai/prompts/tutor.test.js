@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { AppError } from '../../http/errors.js'
 import { formatDocument } from './document.js'
-import { MODE_INSTRUCTIONS, buildTutorRequest, validateTutorInput } from './tutor.js'
+import {
+  LAST_ATTEMPT_INSTRUCTION,
+  MODE_INSTRUCTIONS,
+  buildTutorRequest,
+  validateTutorInput,
+} from './tutor.js'
 
 const passages = [
   { id: 'p3-1', page: 3, text: 'Cold air turns vapour into droplets.', origin: 'text' },
@@ -32,6 +37,7 @@ function makeInput(overrides = {}) {
     })),
     mode: 'guide',
     misses: 0,
+    lastAttempt: false,
     elapsedMinutes: 7,
     history: [
       { role: 'tutor', text: 'Que se passe-t-il quand la vapeur refroidit ?' },
@@ -80,6 +86,8 @@ describe('validateTutorInput', () => {
     ['an outline that does not match stepCount', { outline: [{ title: 't', objective: 'o' }] }],
     ['a step title over 500 chars', { step: { ...makeInput().step, title: 'a'.repeat(501) } }],
     ['a guide turn without a student message last', { history: [{ role: 'tutor', text: 'hi' }] }],
+    ['a missing lastAttempt', { lastAttempt: undefined }],
+    ['a last attempt outside guide mode', { mode: 'explain', lastAttempt: true }],
   ])('rejects %s with BAD_REQUEST', (_, overrides) => {
     let error
     try {
@@ -125,9 +133,25 @@ describe('buildTutorRequest', () => {
     expect(systemInstruction.match(/\(current step\)/g)).toHaveLength(1)
   })
 
-  it('makes explain mode the only place the answer is given', () => {
+  it('gives the answer only in explain mode or on a last attempt', () => {
     const { systemInstruction } = buildTutorRequest(makeInput())
-    expect(systemInstruction).toContain('only explain mode does that')
+    expect(systemInstruction).toContain('only explain mode and a last attempt (see the mode below)')
+  })
+
+  it('confirms a right answer without asking a question or previewing the next step', () => {
+    expect(MODE_INSTRUCTIONS.guide).toContain('confirm it and say why in 1 or 2 sentences')
+    expect(MODE_INSTRUCTIONS.guide).toContain(
+      'ask no new question and do not preview the next step',
+    )
+  })
+
+  it('adds the last-attempt instruction only when lastAttempt is set', () => {
+    const last = buildTutorRequest(makeInput({ misses: 1, lastAttempt: true })).systemInstruction
+    expect(last).toContain(`${MODE_INSTRUCTIONS.guide} ${LAST_ATTEMPT_INSTRUCTION}`)
+    expect(LAST_ATTEMPT_INSTRUCTION).toContain('worked example')
+    expect(LAST_ATTEMPT_INSTRUCTION).toContain('do not ask another question')
+    const normal = buildTutorRequest(makeInput()).systemInstruction
+    expect(normal).not.toContain(LAST_ATTEMPT_INSTRUCTION)
   })
 
   it('keeps the teacher prompt inside its fence', () => {

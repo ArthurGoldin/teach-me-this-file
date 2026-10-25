@@ -1,3 +1,5 @@
+import { MAX_MISSES } from './selectors.js'
+
 // The lesson state and its rules (design §5 and §7.3). The model judges understanding,
 // this reducer decides what happens next. Pure: no I/O, no clock (time comes in actions).
 
@@ -67,8 +69,10 @@ function progressAfterTurn(progress, mode, meta) {
   if (mode !== 'guide' || !meta) return progress
   if (meta.understanding === 'yes') return advance(progress, 'done')
   if (meta.understanding === 'partial' || meta.understanding === 'no') {
-    const { misses } = progress.steps[progress.stepIndex]
-    return updateCurrentStep(progress, { misses: misses + 1 })
+    const misses = progress.steps[progress.stepIndex].misses + 1
+    // The last attempt's reply already explained the answer (lastAttempt in the request).
+    const counted = updateCurrentStep(progress, { misses })
+    return misses >= MAX_MISSES ? advance(counted, 'explained') : counted
   }
   return progress
 }

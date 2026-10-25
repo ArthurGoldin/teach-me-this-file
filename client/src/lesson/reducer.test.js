@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { lessonReducer } from './reducer.js'
+import { MAX_MISSES } from './selectors.js'
 import { START, newLesson, studentSays, testPlan, tutorTurn } from './testLesson.js'
 
 const yes = { understanding: 'yes', passageIds: ['p1-1'] }
@@ -94,6 +95,17 @@ describe('lessonReducer', () => {
     const state = tutorTurn(answered(), 'guide', { understanding: 'no', passageIds: [] })
     expect(state.progress.steps[0].misses).toBe(1)
     expect(state.progress.stepIndex).toBe(0)
+  })
+
+  it('a wrong or partial answer on the last attempt marks the step explained and advances', () => {
+    const once = tutorTurn(answered(), 'guide', { understanding: 'no', passageIds: [] })
+    const state = tutorTurn(studentSays(once), 'guide', {
+      understanding: 'partial',
+      passageIds: [],
+    })
+    expect(state.progress.steps[0]).toMatchObject({ status: 'explained', misses: MAX_MISSES })
+    expect(stepStatuses(state)).toEqual(['explained', 'current', 'todo'])
+    expect(state.progress.pendingAuto).toBe('introduce')
   })
 
   it('guide + none changes no progress', () => {

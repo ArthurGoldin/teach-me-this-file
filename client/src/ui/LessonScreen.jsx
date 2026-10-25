@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { isStreaming, passagesFor } from '../lesson/selectors.js'
+import { canStudentSend, isStreaming, passagesFor } from '../lesson/selectors.js'
 import Composer from './Composer.jsx'
 import LessonHeader from './LessonHeader.jsx'
 import MessageList from './MessageList.jsx'
@@ -38,7 +38,9 @@ function LessonComplete({ onRestart, onNewLesson }) {
 
 // The lesson: route header, chat, composer, and the source of any tutor message.
 // The whole screen follows the lesson language's direction, so a Hebrew lesson mirrors.
-export default function LessonScreen({ lesson, dispatch, onOpenSettings }) {
+// `appBar` (the app's title bar) sits on top of the chat column, so on wide screens the source
+// panel runs the full height beside both and the bar stays aligned with the chat.
+export default function LessonScreen({ lesson, dispatch, appBar, onOpenSettings }) {
   const tutor = useTutor(lesson, dispatch)
   const [sourceId, setSourceId] = useState(null)
   const closeSource = useCallback(() => setSourceId(null), [])
@@ -52,39 +54,42 @@ export default function LessonScreen({ lesson, dispatch, onOpenSettings }) {
   const newLesson = () => dispatch({ type: 'lessonCleared' })
 
   return (
-    <div dir={textDirection(lesson.plan.brief?.language)} className="flex min-h-0 flex-1">
-      <main className="flex min-w-0 flex-1 flex-col">
-        <div className="shrink-0 border-b border-surface">
-          <LessonHeader lesson={lesson} onNewLesson={newLesson} />
+    <div dir={textDirection(lesson.plan.brief?.language)} className="flex h-dvh">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div dir="ltr" className="shrink-0">
+          {appBar}
         </div>
-        <MessageList
-          lesson={lesson}
-          sourceId={sourceId}
-          onShowSource={(id) => setSourceId(id === sourceId ? null : id)}
-          onRetry={tutor.retry}
-          onOpenSettings={() => onOpenSettings(null)}
-        />
-        <div className="shrink-0 border-t border-surface">
-          {complete ? (
-            <LessonComplete
-              onRestart={() => {
-                setSourceId(null)
-                dispatch({ type: 'lessonRestarted', now: Date.now() })
-              }}
-              onNewLesson={newLesson}
-            />
-          ) : (
-            <Composer
-              streaming={streaming}
-              disabled={
-                streaming || progress.pendingAuto !== null || progress.status !== 'teaching'
-              }
-              onSend={tutor.send}
-              onStop={tutor.stop}
-            />
-          )}
-        </div>
-      </main>
+        <main className="flex min-h-0 flex-1 flex-col">
+          <div className="shrink-0 border-b border-surface">
+            <LessonHeader lesson={lesson} onNewLesson={newLesson} />
+          </div>
+          <MessageList
+            lesson={lesson}
+            sourceId={sourceId}
+            onShowSource={(id) => setSourceId(id === sourceId ? null : id)}
+            onRetry={tutor.retry}
+            onOpenSettings={() => onOpenSettings(null)}
+          />
+          <div className="shrink-0 border-t border-surface">
+            {complete ? (
+              <LessonComplete
+                onRestart={() => {
+                  setSourceId(null)
+                  dispatch({ type: 'lessonRestarted', now: Date.now() })
+                }}
+                onNewLesson={newLesson}
+              />
+            ) : (
+              <Composer
+                streaming={streaming}
+                locked={!canStudentSend(lesson)}
+                onSend={tutor.send}
+                onStop={tutor.stop}
+              />
+            )}
+          </div>
+        </main>
+      </div>
       {sourcePassages.length > 0 && (
         <SourcePanel passages={sourcePassages} kind={lesson.document.kind} onClose={closeSource} />
       )}

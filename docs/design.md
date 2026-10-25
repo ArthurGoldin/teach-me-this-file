@@ -222,7 +222,7 @@ Student sends text (or the app triggers an automatic turn)
   ├─ POST /api/tutor   (Accept: text/event-stream, header X-Gemini-Key)
   │     body: { brief, teacherPrompt, lessonTitle, stepNumber, stepCount,
   │             step: { title, objective, checkQuestion, passages: Passage[] },
-  │             mode, misses, elapsedMinutes, history: last 12 messages (role + text) }
+  │             mode, misses, lastAttempt, elapsedMinutes, history: last 12 messages (role + text) }
   │     (a few KB; never the whole document)
   ├─ server: build prompt → gemini generateContentStream({ abortSignal })
   │     each chunk → meta splitter → `event: delta {text}`   (marker held back, never emitted)
@@ -261,12 +261,12 @@ The teacher's prompt is passed verbatim (≤ 1,000 chars) in a fenced "Teacher's
 
 Per-turn mode (chosen by the app, stated in the prompt):
 
-| Mode        | When                                     | Tutor is told to                                                                          |
-| ----------- | ---------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `introduce` | First turn of a step (automatic)         | Greet (step 1 only), connect to the previous step, open with a question                   |
-| `guide`     | Normal reply                             | Evaluate the student's answer, hint or confirm, ask one question                          |
-| `explain`   | `misses ≥ 2` or `turns ≥ 4` on this step | Explain the answer with a worked example from the passages, check briefly, say we move on |
-| `wrap-up`   | After the last step                      | Recap the key ideas of the lesson in 3–5 points, congratulate, no new question            |
+| Mode        | When                             | Tutor is told to                                                                                                                                                                                                                                                                 |
+| ----------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `introduce` | First turn of a step (automatic) | Greet (step 1 only), connect to the previous step, open with a question                                                                                                                                                                                                          |
+| `guide`     | Normal reply                     | Evaluate the answer: right → confirm in 1–2 sentences, no new question, no preview of the next step (the app starts it); wrong/partial → hint and ask again. With `lastAttempt` (`misses = 1`): a wrong/partial answer gets the worked explanation and "we move on", no question |
+| `explain`   | `turns ≥ 4` on this step         | Explain the answer with a worked example from the passages, check briefly, say we move on                                                                                                                                                                                        |
+| `wrap-up`   | After the last step              | Recap the key ideas of the lesson in 3–5 points, congratulate, no new question                                                                                                                                                                                                   |
 
 Time: `elapsedMinutes` and `durationMinutes` are in the prompt so the tutor paces itself; the UI shows "~9 / 15 min". No hard cut-off.
 
@@ -277,7 +277,7 @@ The model's judgement (`understanding`) is only used in `guide` turns. In the ot
 On `TUTOR_FINISHED` (stream completed normally):
 
 - `guide` + `understanding: 'yes'` → step `done`, advance, then trigger an automatic `introduce` turn for the next step (or `wrap-up` after the last).
-- `guide` + `'partial' | 'no'` → `misses += 1`.
+- `guide` + `'partial' | 'no'` → `misses += 1`; when that makes `misses = 2` (`MAX_MISSES`), the step is `explained` and the app advances (automatic `introduce` or `wrap-up`). That reply was sent with `lastAttempt: true`, so it already explained the answer.
 - `guide` + `'none'` → nothing (off-topic question, "just tell me", greeting).
 - `guide` + meta missing/invalid → nothing; the message shows "No source for this message".
 - `explain` → step `explained`, advance, automatic `introduce` (or `wrap-up`) — whatever the meta says.

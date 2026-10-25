@@ -17,23 +17,24 @@ function TypingDots() {
   )
 }
 
-const AUTO_MODES = ['introduce', 'wrap-up']
-
 const ACTION_LABELS = { retry: 'Try again', settings: 'Open settings' }
 
 // Why a turn failed, with the one action that fixes it. Only the latest message offers it:
 // an older failure has already been followed by something else (e.g. its retry).
+// The alert text is fixed (computed from the original wait), so screen readers hear it once;
+// the per-second countdown lives only on the button, outside the alert.
 function FailedNote({ error, canAct, onRetry, onOpenSettings }) {
   const left = useSecondsLeft(error)
   const { text, action } = canAct
-    ? messageFor(error.code, { ...error, retryAfterSeconds: left })
+    ? messageFor(error.code, error)
     : { text: "This answer didn't arrive.", action: null }
   const label = ACTION_LABELS[action]
   const waiting = action === 'retry' && left > 0
+  const waited = action === 'retry' && error.retryAfterSeconds > 0 && left === 0
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm" role="alert">
-      <p dir="auto" className="text-slate/80">
-        {text}
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+      <p role="alert" dir="auto" className="text-slate/80">
+        {waited ? 'You can try again now.' : text}
       </p>
       {canAct && label && (
         <button
@@ -81,6 +82,7 @@ export default function MessageBubble({
   passages,
   kind,
   isLast,
+  continuable,
   sourceOpen,
   onShowSource,
   onRetry,
@@ -124,9 +126,8 @@ export default function MessageBubble({
       {state === 'stopped' && text !== '' && (
         <p className="mt-1.5 ps-1 text-xs text-slate/55">Stopped</p>
       )}
-      {/* A stopped introduction or wrap-up leaves the student without a question (and a
-          stopped wrap-up would never end the lesson), so it can be asked for again. */}
-      {state === 'stopped' && isLast && AUTO_MODES.includes(message.mode) && (
+      {/* See canContinue (selectors.js) for which stopped turns can be run again. */}
+      {continuable && (
         <button
           type="button"
           onClick={() => onRetry(message.id)}

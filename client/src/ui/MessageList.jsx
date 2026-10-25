@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react'
-import { passagesFor } from '../lesson/selectors.js'
+import { canContinue, passagesFor } from '../lesson/selectors.js'
 import MessageBubble from './MessageBubble.jsx'
+import { plainText } from './lessonFormat.js'
 
 // How close to the bottom (px) still counts as "following the conversation".
 const FOLLOW_SLACK = 80
@@ -44,6 +45,7 @@ export default function MessageList({ lesson, sourceId, onShowSource, ...actions
               }
               kind={document.kind}
               isLast={i === messages.length - 1}
+              continuable={canContinue(lesson, message)}
               sourceOpen={sourceId === message.id}
               onShowSource={onShowSource}
               {...actions}
@@ -53,7 +55,7 @@ export default function MessageList({ lesson, sourceId, onShowSource, ...actions
       </div>
       {/* Screen readers hear each finished tutor message once, not every streamed word. */}
       <p aria-live="polite" className="sr-only">
-        {announce && announce.id !== restoredId ? announce.text : ''}
+        {announce && announce.id !== restoredId ? `Tutor replied: ${plainText(announce.text)}` : ''}
       </p>
     </div>
   )

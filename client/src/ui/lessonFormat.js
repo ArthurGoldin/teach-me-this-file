@@ -85,3 +85,26 @@ export function includedSummary(document) {
     })
   return [used, ...skips]
 }
+
+// Markdown reduced to what a screen reader should say: link text instead of [text](url), no
+// emphasis, heading, list, table or math markers.
+export function plainText(markdown) {
+  return markdown
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/^\s{0,3}(#{1,6}|>|[-*+]|\d+[.)])\s+/gm, '')
+    .replace(/^\s*\|?[\s:|-]+\|[\s:|-]*$/gm, '')
+    .replace(/[*_`~$|\\]/g, '')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/ ?\n\s*/g, '\n')
+    .trim()
+}
+
+// The host of an http(s) link, or null for anything else (relative, mailto:, javascript:…).
+export function linkHost(href) {
+  try {
+    const url = new URL(href)
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.host : null
+  } catch {
+    return null
+  }
+}

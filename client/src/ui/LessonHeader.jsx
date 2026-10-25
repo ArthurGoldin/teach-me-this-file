@@ -27,8 +27,10 @@ function LessonMenu({ file, onNewLesson }) {
       setOpen(false)
       setConfirming(false)
     }
+    // Only while focus is in the menu, and not when something inside already handled it.
     const onKey = (event) => {
-      if (event.key !== 'Escape') return
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      if (!rootRef.current?.contains(event.target)) return
       close()
       buttonRef.current?.focus()
     }

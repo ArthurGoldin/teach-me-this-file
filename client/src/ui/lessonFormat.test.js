@@ -3,8 +3,10 @@ import {
   formatPages,
   hasAppLine,
   includedSummary,
+  linkHost,
   originLabel,
   passageHeading,
+  plainText,
   sourceLabel,
   textDirection,
 } from './lessonFormat.js'
@@ -83,5 +85,29 @@ describe('includedSummary', () => {
       'This lesson uses pages 1–180 of 412.',
       'Skipped pages 30–32: over the limit of 20 scanned pages.',
     ])
+  })
+})
+
+describe('plainText', () => {
+  it('drops Markdown symbols but keeps the words', () => {
+    const markdown =
+      '## Bravo !\n\n- **Évaporation** : $H_2O$ monte\n- voir [la page](https://x.org)'
+    expect(plainText(markdown)).toBe('Bravo !\nÉvaporation : H2O monte\nvoir la page')
+  })
+
+  it('drops table separators and pipes', () => {
+    expect(plainText('| a | b |\n|---|---|\n| 1 | 2 |')).toBe('a b\n1 2')
+  })
+})
+
+describe('linkHost', () => {
+  it('names the site of an http(s) link', () => {
+    expect(linkHost('https://www.example.org/a?b=1')).toBe('www.example.org')
+  })
+
+  it('is null for relative, mailto and javascript links', () => {
+    expect(linkHost('/api/config')).toBeNull()
+    expect(linkHost('mailto:a@b.org')).toBeNull()
+    expect(linkHost('javascript:alert(1)')).toBeNull()
   })
 })

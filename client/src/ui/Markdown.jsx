@@ -4,6 +4,7 @@ import rehypeKatex from 'rehype-katex'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import 'katex/dist/katex.min.css'
+import { linkHost } from './lessonFormat.js'
 
 // Model and file text as Markdown: GFM tables and KaTeX math. Raw HTML is never rendered
 // (react-markdown ignores it without rehype-raw), so neither the model nor a file can inject
@@ -17,8 +18,8 @@ const auto =
 
 const components = {
   p: auto('p'),
-  // Headings inside a message are sub-headings of the chat, never page titles.
   li: auto('li'),
+  // Headings inside a message are sub-headings of the chat, never page titles.
   h1: auto('h3'),
   h2: auto('h3'),
   h3: auto('h4'),
@@ -30,11 +31,21 @@ const components = {
       <table {...props} />
     </div>
   ),
-  a: ({ node, children, ...props }) => (
-    <a {...props} target="_blank" rel="noreferrer">
-      {children}
-    </a>
-  ),
+  // Nothing remote is loaded from model or file text: an image shows its alt text only (a
+  // remote image could track the student), and a link names its site before anyone opens it.
+  img: ({ alt }) => (alt ? <span className="italic">[{alt}]</span> : null),
+  a: ({ href, children }) => {
+    const host = linkHost(href)
+    if (!host) return <span>{children}</span>
+    return (
+      <>
+        <a href={href} target="_blank" rel="noopener noreferrer">
+          {children}
+        </a>{' '}
+        <span className="text-[0.85em] opacity-70">({host})</span>
+      </>
+    )
+  },
 }
 
 const remarkPlugins = [remarkGfm, remarkMath]

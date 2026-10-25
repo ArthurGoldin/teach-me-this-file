@@ -6,6 +6,8 @@ import {
   MAX_MISSES,
   MAX_TURNS,
   buildTutorInput,
+  canContinue,
+  canStudentSend,
   currentStep,
   elapsedMinutes,
   isStreaming,
@@ -34,13 +36,50 @@ describe('lesson selectors', () => {
     ).toBe(true)
   })
 
-  it('nextStudentTurnMode is guide, then explain after MAX_MISSES misses', () => {
+  it('nextStudentTurnMode stays guide while misses accumulate (the last attempt explains)', () => {
     let state = answered()
-    for (let i = 0; i < MAX_MISSES; i++) {
-      expect(nextStudentTurnMode(state)).toBe('guide')
+    for (let i = 0; i < MAX_MISSES - 1; i++) {
       state = studentSays(tutorTurn(state, 'guide', miss))
+      expect(nextStudentTurnMode(state)).toBe('guide')
     }
-    expect(nextStudentTurnMode(state)).toBe('explain')
+  })
+
+  it('buildTutorInput flags the guide turn that is the last attempt', () => {
+    let state = answered()
+    expect(buildTutorInput(state, 'guide', START).lastAttempt).toBe(false)
+    for (let i = 0; i < MAX_MISSES - 1; i++) state = studentSays(tutorTurn(state, 'guide', miss))
+    expect(buildTutorInput(state, 'guide', START).lastAttempt).toBe(true)
+    expect(buildTutorInput(state, 'explain', START).lastAttempt).toBe(false)
+  })
+
+  it('canStudentSend only while teaching with nothing streaming or due', () => {
+    expect(canStudentSend(newLesson())).toBe(false) // the introduction is due
+    const state = tutorTurn(newLesson(), 'introduce', null)
+    expect(canStudentSend(state)).toBe(true)
+    const streaming = lessonReducer(studentSays(state), {
+      type: 'tutorStarted',
+      id: 's',
+      mode: 'guide',
+    })
+    expect(canStudentSend(streaming)).toBe(false)
+  })
+
+  it('canContinue only for the last message: a stopped automatic or empty turn', () => {
+    const stopped = (state, id, mode, text) => {
+      let next = lessonReducer(state, { type: 'tutorStarted', id, mode })
+      if (text) next = lessonReducer(next, { type: 'tutorDelta', id, text })
+      return lessonReducer(next, { type: 'tutorStopped', id })
+    }
+    const state = stopped(newLesson(), 'i1', 'introduce', 'Bonj')
+    const intro = state.messages.at(-1)
+    expect(canContinue(state, intro)).toBe(true)
+    expect(canContinue(studentSays(state), intro)).toBe(false)
+    // A reply stopped before its first word can be asked for again…
+    const empty = stopped(studentSays(state), 'g1', 'guide')
+    expect(canContinue(empty, empty.messages.at(-1))).toBe(true)
+    // …but not a partial reply the student stopped on purpose.
+    const partial = stopped(studentSays(state), 'g2', 'guide', 'Presque')
+    expect(canContinue(partial, partial.messages.at(-1))).toBe(false)
   })
 
   it('nextStudentTurnMode is explain after MAX_TURNS student turns on the step', () => {
@@ -81,6 +120,7 @@ describe('lesson selectors', () => {
       outline: testPlan.steps.map(({ title, objective }) => ({ title, objective })),
       mode: 'guide',
       misses: 0,
+      lastAttempt: false,
       elapsedMinutes: 2,
       history: [
         { role: 'tutor', text: 'Tutor text.' },

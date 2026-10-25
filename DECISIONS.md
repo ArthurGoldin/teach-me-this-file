@@ -57,7 +57,7 @@ A running log of the choices behind "Teach Me This File": what I chose, what I r
 
 ### D9. The model judges understanding, the app decides what happens
 
-- **Chose:** each tutor turn reports `understanding: yes | partial | no | none`. The reducer applies fixed rules: yes → next step; partial/no → count a miss; after 2 misses (or 4 turns on a step) the tutor is told to explain with a worked example and move on.
+- **Chose:** each tutor turn reports `understanding: yes | partial | no | none`. The reducer applies fixed rules: yes → next step (the tutor only confirms; the app's next turn introduces the step); partial/no → count a miss. The second attempt is flagged `lastAttempt` in the request, so if it is still wrong the tutor explains the answer with a worked example in that same reply, and the reducer marks the step explained and moves on. After 4 student messages on a step without a judged answer, an explain turn does the same.
 - **Rejected:** "Got it / Explain again" buttons only; letting the model decide everything.
 - **Why:** checking understanding needs the model, but progress must be predictable and testable, and the brief requires progress in app state. The cap stops a student getting stuck forever.
 
@@ -119,7 +119,14 @@ A running log of the choices behind "Teach Me This File": what I chose, what I r
 - **Chose:** one hook (`client/src/ui/useTutor.js`) turns the stream into reducer actions; it owns the only `AbortController`, so at most one turn is in flight, Stop aborts it and leaving the lesson aborts it. Automatic turns (introduce a step, wrap up) start when the reducer sets `pendingAuto`, from a zero-delay timer that the effect cleanup cancels, so React StrictMode's double mount starts them once. A student turn is built from the state _after_ `studentSent` (the reducer is called directly on the current state), so the request always ends with the new message. Header: title, the route (one stop per step, amber "you are here", mirrored in Hebrew/Arabic lessons), "Step 2 of 5", "~4 / 15 min", and a menu with "What's included" and New lesson (with confirmation). The source panel is a bottom sheet on phones (native `<dialog>`: focus trap, Escape) and a side panel from `md` up, so the student can keep answering while reading the source.
 - **Rejected:** keeping turn logic in the components; a "Next step" button instead of automatic introductions; a modal source panel on desktop.
 - **Why:** the reducer decides, the hook does I/O, the components render: each part can be explained and changed alone.
-- **Details:** the lesson is not saved to sessionStorage while a turn streams (it would rewrite the whole lesson on every chunk); it is saved when the turn ends, and a reload mid-stream restores the turn as stopped. A stopped introduction or wrap-up offers "Continue the lesson" (otherwise the student has no question, and a stopped wrap-up could never end the lesson). Only the latest failed turn offers its fix (Retry with the rate-limit countdown, or Open settings). The composer blocks a message with a line starting with `[app]` and says why, because the server rejects it (D15). A tutor message whose turn sent no valid citation says "No source for this message" instead of showing a chip. Lesson text sets its own direction (`dir="auto"`), formulas are always left to right.
+- **Details:** the lesson is saved when a turn starts (the student message plus an empty tutor stub) and when it ends, but not while tutor text streams in (that would rewrite the whole lesson on every chunk). A reload mid-answer therefore keeps the student's message and restores the stub as stopped. "Continue the lesson" re-runs a stopped turn that is the latest message and is either automatic (introduce / wrap-up: otherwise the student has no question, and a stopped wrap-up could never end the lesson) or empty (stopped before its first word, e.g. by that reload); the re-run leaves the stopped message out of the history. Only the latest failed turn offers its fix (Retry, or Open settings); the alert text is fixed and the rate-limit countdown is only on the button, so screen readers do not hear it every second. While the tutor answers, the composer is read-only, not disabled, so it keeps focus and a phone keeps its keyboard open. The composer blocks a message with a line starting with `[app]` and says why, because the server rejects it (D15). A tutor message whose turn sent no valid citation says "No source for this message" instead of showing a chip. A finished tutor message is announced once to screen readers as plain text. Lesson text sets its own direction (`dir="auto"`), formulas are always left to right. The app bar sits on top of the chat column, so the desktop source panel runs the full height beside it.
+- **Loading:** the lesson screen (with react-markdown and KaTeX) is a lazy chunk, so the setup screen loads only what it needs; if the chunk cannot be downloaded, the app offers a reload instead of crashing (the lesson is safe in sessionStorage).
+
+### D19. Nothing remote in lesson text, and a Content-Security-Policy
+
+- **Chose:** Markdown from the model or the file never loads anything: an image renders as its alt text only, and a link opens in a new tab (`rel="noopener noreferrer"`) with its site shown after the text, e.g. "the site (example.org)"; non-http links render as plain text. Vercel sends a Content-Security-Policy on every response (`vercel.json`): scripts, connections and workers only from our origin (`blob:` for workers), styles from our origin plus Google Fonts (inline styles allowed for React and KaTeX), fonts from our origin and Google Fonts, images from our origin, `data:` and `blob:`, and no framing.
+- **Rejected:** rendering images from model text; relying on react-markdown's URL filter alone.
+- **Why:** a remote image or link in a lesson could track a student or send them somewhere unexpected, and the file is untrusted. The CSP is a second line of defence if anything ever slipped through. Checked with the production build: page load, PDF reading (pdf.js worker), the lesson chunk and KaTeX fonts work with the same policy and the console shows no violations.
 
 ## What I decided not to do (and why)
 
@@ -135,8 +142,6 @@ A running log of the choices behind "Teach Me This File": what I chose, what I r
 - Stop ends our stream and our request to Gemini, but the SDK documents abort as client-side only: Google may still finish (and bill) the generation.
 - Formulas in PDFs that have a text layer come out as flat text (only scanned pages get LaTeX transcription).
 - The tutor's hidden JSON block depends on the model following instructions; when it does not, that turn has no citation and no progress.
-- The main bundle is about 700 kB (about 215 kB gzipped), mostly React, react-markdown and KaTeX; Vite warns about it. Loading the lesson screen lazily would split it, at the cost of another chunk that can fail to load.
-- The tutor sometimes asks the next step's question in the same message where it confirms a correct answer, and then the automatic introduction asks it again.
 - Rate limits of the reviewer's free key can interrupt a lesson (shown clearly, with retry).
 - The plan model (`gemini-3.5-flash-lite`) still sometimes puts two concepts in one step, more often in French than in English (for example "L'évaporation et la transpiration"), even after two prompt iterations. Each step still has one check question, and the tutor teaches from that step's passages, so the lesson stays usable.
 
@@ -157,7 +162,7 @@ Runtime
 - `@google/genai`: Google's official Gemini SDK; streaming, JSON-schema output and abort support without hand-rolled REST.
 - `react-markdown`: renders the tutor's Markdown (lists, bold, tables) as React elements without `dangerouslySetInnerHTML`; raw HTML is ignored, so no XSS from model or file text.
 - `remark-gfm`: GitHub-flavoured Markdown, needed for tables in school material.
-- `remark-math`, `rehype-katex`, `katex`: `$…$` formulas rendered as real math (transcribed scans are LaTeX, and the tutor writes formulas the same way). They make up most of the main bundle size; see Known weaknesses.
+- `remark-math`, `rehype-katex`, `katex`: `$…$` formulas rendered as real math (transcribed scans are LaTeX, and the tutor writes formulas the same way). They load with the lesson screen only (D18).
 - `pdfjs-dist`: Mozilla's PDF.js, the standard way to read a PDF's text layer and render pages in the browser; runs its parser in a Web Worker.
 
 Build and test

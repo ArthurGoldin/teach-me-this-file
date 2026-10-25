@@ -4,11 +4,13 @@ import { hasAppLine } from './lessonFormat.js'
 const MAX_MESSAGE = 2000
 
 // The student's reply box. Enter sends, Shift+Enter adds a line. While the tutor answers,
-// Stop takes the place of Send (one turn in flight, design §7.3).
-export default function Composer({ streaming, disabled, onSend, onStop }) {
+// Stop takes the place of Send (one turn in flight, design §7.3). `locked` (the student cannot
+// send now) makes the box read-only rather than disabled, so it keeps focus and a phone keeps
+// its keyboard open between turns.
+export default function Composer({ streaming, locked, onSend, onStop }) {
   const [draft, setDraft] = useState('')
   const blocked = hasAppLine(draft)
-  const canSend = !disabled && !streaming && draft.trim() !== '' && !blocked
+  const canSend = !locked && draft.trim() !== '' && !blocked
 
   function submit() {
     if (!canSend) return
@@ -43,12 +45,12 @@ export default function Composer({ streaming, disabled, onSend, onStop }) {
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={handleKeyDown}
-          disabled={disabled}
+          readOnly={locked}
           enterKeyHint="send"
-          placeholder={disabled ? 'Wait for the tutor…' : 'Type your answer'}
+          placeholder={locked ? 'Wait for the tutor…' : 'Type your answer'}
           aria-invalid={blocked}
           aria-describedby={blocked ? 'student-message-hint' : undefined}
-          className="field-sizing-content max-h-40 min-h-10 flex-1 resize-none bg-transparent py-2 leading-relaxed placeholder:text-slate/45 focus-visible:outline-none disabled:cursor-not-allowed"
+          className="field-sizing-content max-h-40 min-h-10 flex-1 resize-none bg-transparent py-2 leading-relaxed placeholder:text-slate/45 read-only:cursor-default focus-visible:outline-none"
         />
         {streaming ? (
           <button

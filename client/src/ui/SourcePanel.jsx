@@ -59,17 +59,25 @@ function Passages({ passages, kind, onClose }) {
 }
 
 // Phones: a modal bottom sheet. The native <dialog> traps focus, closes on Escape and
-// returns focus to the chip that opened it.
+// returns focus to the chip that opened it. Every way out (Close, Escape, a tap on the
+// backdrop) goes through dialog.close(), so that focus return happens before React unmounts it.
 function SourceSheet({ onClose, ...props }) {
   const dialogRef = useRef(null)
   useEffect(() => {
     const dialog = dialogRef.current
     if (!dialog.open) dialog.showModal()
   }, [])
+  const close = () => dialogRef.current.close()
   return (
+    // The click handler only catches taps on the backdrop (the dialog element itself, outside
+    // its content); keyboard users close with Escape or the Close button.
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
     <dialog
       ref={dialogRef}
       onClose={onClose}
+      onClick={(event) => {
+        if (event.target === dialogRef.current) close()
+      }}
       aria-labelledby="source-title"
       className="mx-0 mt-auto mb-0 flex max-h-[80dvh] w-full max-w-none flex-col rounded-t-2xl bg-white p-0 text-slate shadow-xl backdrop:bg-slate/50"
     >
@@ -77,7 +85,7 @@ function SourceSheet({ onClose, ...props }) {
         aria-hidden="true"
         className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-slate/15"
       />
-      <Passages {...props} onClose={onClose} />
+      <Passages {...props} onClose={close} />
     </dialog>
   )
 }
@@ -95,8 +103,10 @@ function SourceSide({ onClose, ...props }) {
     }
   }, [])
   useEffect(() => {
+    // Only while focus is in the panel, and not when something inside already handled it.
     const onKey = (event) => {
-      if (event.key === 'Escape') onClose()
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      if (panelRef.current?.contains(event.target)) onClose()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)

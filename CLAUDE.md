@@ -42,20 +42,23 @@ Set these up in the scaffolding task, before any feature code. Verify current pa
 
 ## Commands
 
-- Dev: `npm run dev` (one process: Vite plus the Express app as middleware, on :5173)
+- Dev: `npm run dev` (one process: Vite plus the Express app as middleware, on :5173; optional `.env` with `GEMINI_API_KEY`)
 - Test: `npm test`
-- Build: `npm run build`
+- Build: `npm run build` (to `dist/`)
 - Lint: `npm run lint`
-- Format: `npm run format`
+- Format: `npm run format` (check only: `npm run format:check`)
 - Dead code: `npx knip`
 - Secret scan: `npm run secrets`
 
 ## Project map
 
-- `client/src/ui/`: React components only (no fetch, no prompt text, no lesson rules)
-- `client/src/lesson/`: reducer, selectors, persistence (pure, unit-tested)
-- `client/src/document/`: file reading, chunking, token budget, page selection, transcription batches
-- `client/src/api/`: fetch client, SSE parser, keyStore (the only place the key may touch sessionStorage)
-- `server/`: `app.js` (Express app, shared by dev and Vercel), `http/` (key, errors, SSE, logger), `ai/` (Gemini calls, prompts, response parsing)
-- `api/index.js`: Vercel entry (added in the deploy task)
-- `docs/`: assignment, design, plan. Full layout in `docs/design.md` section 4.1
+- `client/src/ui/`: React components and the two I/O hooks (`useLessonBuilder` for setup, `useTutor` for lesson turns); no prompt text, no lesson rules. Error copy: `errorMessages.js`
+- `client/src/lesson/`: `reducer.js`, `selectors.js` (`MAX_MISSES`, `MAX_TURNS`, `buildTutorInput`), `persistence.js` (pure, unit-tested)
+- `client/src/document/`: `readFile.js` (file types), pdf.js wrapper, passages and chunking, token budget, page range, transcription batches
+- `client/src/api/`: fetch client, SSE parser, `keyStore.js` (the only place the key may touch sessionStorage)
+- `server/app.js`: Express app, shared by dev and Vercel
+- `server/http/`: routes (`planRoute`, `tutorRoute` incl. fallback grader, `transcribeRoute`), key header, errors, SSE, logger
+- `server/ai/`: `gemini.js` (all SDK calls, `MODEL_ID`), `meta.js`, `planSchema.js`, `prompts/` (plan, tutor, grade, transcribe, document)
+- `api/index.js`: Vercel entry; `vercel.json`: build, rewrite, CSP
+- `fixtures/`: test files for evals and manual checks
+- `docs/`: assignment, design, plan, `interview-notes.md`. README.md (run/use) and DECISIONS.md (choices, weaknesses, evals) at the root

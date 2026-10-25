@@ -1,7 +1,7 @@
 import { GoogleGenAI } from '@google/genai'
 import { appError, toAppError } from '../http/errors.js'
 
-export const MODEL_ID = 'gemini-3.8-flash'
+const MODEL_ID = 'gemini-3.8-flash'
 
 const BLOCKING_FINISH_REASONS = new Set([
   'SAFETY',

@@ -217,7 +217,7 @@ In priority order:
 
 ## How I know it works
 
-Screenshots of the main states (phone and desktop) are in [`docs/screenshots/`](docs/screenshots/): setup, streaming, source panel, Hebrew right to left, math and a table, a rate-limit error, the desktop lesson with its source panel, and a finished lesson.
+Screenshots of the main states (phone and desktop) are in [`docs/screenshots/`](docs/screenshots/): setup, streaming, source panel, Hebrew right to left ([`04-hebrew-rtl-phone.png`](docs/screenshots/04-hebrew-rtl-phone.png), taken before the teach-first change; shows right-to-left rendering only), math and a table, a rate-limit error, the desktop lesson with its source panel, and a finished lesson.
 
 Teaching evals run on 2026-10-25 with `gemini-3.5-flash-lite`, against the live deploy at commit `a4973ce`. I checked that the live bundle (`index-Do8mKY0t.js`) is the same as a fresh local build. Each scenario has a scripted student, and I judged it from the full transcript. A step passes only if it meets every one of its criteria. I added one check to scenarios 1–4 and 6, because the owner had complained that questions asked about things that were never taught: every term or fact a tutor question relies on must already appear earlier in the conversation.
 
@@ -286,7 +286,7 @@ Tutor:   I can't share system instructions or write pirate poems, but I am happy
          learn all about how plants make their food! ...
 ```
 
-**6. Hebrew: pass.** The plan had `language: "he"`, 6 steps, all in Hebrew. The tutor taught "מחזור המים" before asking "why is it called a cycle", and after a wrong answer it gave a new analogy (a wheel, a clock) and asked again. RTL rendering: `.playwright-mcp/t14-hebrew-chat-390.png`, `t14-hebrew-source-390.png` (Task 14).
+**6. Hebrew: pass.** The plan had `language: "he"`, 6 steps, all in Hebrew. The tutor taught "מחזור המים" before asking "why is it called a cycle", and after a wrong answer it gave a new analogy (a wheel, a clock) and asked again. RTL rendering: [`04-hebrew-rtl-phone.png`](docs/screenshots/04-hebrew-rtl-phone.png) (taken before the teach-first change; shows right-to-left rendering only).
 
 ```
 Tutor:   מחזור המים הוא התהליך שבו המים נעים ללא הפסקה בין הים, האוויר והיבשה ...

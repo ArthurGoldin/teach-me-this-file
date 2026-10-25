@@ -12,7 +12,7 @@ A teacher uploads a school file and writes a short prompt ("Teach this to 7th gr
 
 ### Goals
 
-- A lesson that behaves like a good teacher (questions first, hints not answers, one idea at a time).
+- A lesson that behaves like a good teacher (teaches first, then asks; hints not answers, one idea at a time).
 - Every tutor message can show the real passage it is based on.
 - Robust, honest handling of unseen files: RTL, scans, formulas, tables, long docs, empty/odd content.
 - Clear module boundaries a reviewer can read in minutes; logic covered by unit tests.
@@ -70,7 +70,7 @@ A teacher uploads a school file and writes a short prompt ("Teach this to 7th gr
 │   │  dispatch(action) / read state                                          │
 │   ▼                                                                         │
 │  lesson/        reducer (plan, progress, messages)  ── persist ──▶ session- │
-│   │  selectors: currentStep, nextTurnMode, progressLabel          Storage   │
+│   │  selectors: currentStep, nextStudentTurnMode, progressLabel   Storage   │
 │   │                                                                         │
 │  document/      readFile → pages → passages (pdf.js, image downscale,       │
 │                 chunker, budget/range)                                      │
@@ -379,7 +379,7 @@ Dev: `vite`, `@vitejs/plugin-react`, `vitest`, ESLint + plugins, Prettier + tail
 
 ## 13. Testing
 
-**Unit (Vitest, TDD):** `chunk.js`, page classification, `budget.js` (estimate, default range), lesson reducer (every rule in §7.3, stop/fail no-ops), `selectors.js` (`nextTurnMode`, progress label), client SSE parser (split lines, multiple events per chunk), server meta splitter (marker split across chunks, no marker, marker at start, code-fenced JSON), meta parser/validator, plan validator, prompt builders (passages wrapped and escaped, mode text present, history trimmed), Gemini error mapping.
+**Unit (Vitest, TDD):** `chunk.js`, page classification, `budget.js` (estimate, default range), lesson reducer (every rule in §7.3, stop/fail no-ops), `selectors.js` (`nextStudentTurnMode`, progress label), client SSE parser (split lines, multiple events per chunk), server meta splitter (marker split across chunks, no marker, marker at start, code-fenced JSON), meta parser/validator, plan validator, prompt builders (passages wrapped and escaped, mode text present, history trimmed), Gemini error mapping.
 **Route tests:** Express app with `gemini.js` replaced by a fake (dependency injection), run with Node `fetch` against `app.listen(0)`: SSE event order, error events, abort on client disconnect.
 **Teaching evals (real model, recorded in DECISIONS.md with transcript excerpt + pass/fail):**
 

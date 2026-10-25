@@ -75,7 +75,7 @@ function isValidBrief(brief) {
   return (
     isObject(brief) &&
     isPlanText(brief.language) &&
-    LANGUAGE_TAG.test(brief.language) &&
+    LANGUAGE_TAG.test(brief.language.trim()) &&
     [brief.audience, brief.style, brief.notes].every(isOptionalPlanText)
   )
 }
@@ -86,7 +86,7 @@ export function validatePlan(response, passageIds) {
   if (!isObject(response)) throw appError('PLAN_INVALID')
   if (response.ok === false) {
     if (!isPlanText(response.reason)) throw appError('PLAN_INVALID')
-    return { ok: false, reason: response.reason }
+    return { ok: false, reason: response.reason.trim() }
   }
 
   const { plan } = response
@@ -104,24 +104,26 @@ export function validatePlan(response, passageIds) {
   }
 
   const { brief } = plan
+  const trim = (value) => (value ?? '').trim()
+  const duration = brief.durationMinutes
   return {
     ok: true,
     plan: {
-      title: plan.title,
+      title: trim(plan.title),
       brief: {
-        language: brief.language,
-        audience: brief.audience ?? '',
-        style: brief.style ?? '',
+        language: trim(brief.language),
+        audience: trim(brief.audience),
+        style: trim(brief.style),
         durationMinutes:
-          brief.durationMinutes > 0 ? brief.durationMinutes : DEFAULT_DURATION_MINUTES,
-        notes: brief.notes ?? '',
+          Number.isFinite(duration) && duration > 0 ? duration : DEFAULT_DURATION_MINUTES,
+        notes: trim(brief.notes),
       },
       steps: plan.steps.map((step, i) => ({
         id: `s${i + 1}`,
-        title: step.title,
-        objective: step.objective,
-        checkQuestion: step.checkQuestion,
-        passageIds: step.passageIds,
+        title: trim(step.title),
+        objective: trim(step.objective),
+        checkQuestion: trim(step.checkQuestion),
+        passageIds: [...new Set(step.passageIds)],
       })),
     },
   }

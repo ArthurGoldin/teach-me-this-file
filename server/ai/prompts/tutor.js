@@ -51,8 +51,9 @@ export function validateTutorInput(body) {
   if (!isObject(body)) throw badRequest('body must be an object')
   const { brief, teacherPrompt, step, outline, history } = body
 
-  if (!isObject(brief) || !isPlanText(brief.language))
+  if (!isObject(brief) || !isPlanText(brief.language)) {
     throw badRequest('brief.language is required')
+  }
   if (![brief.audience, brief.style, brief.notes].every(isOptionalPlanText)) {
     throw badRequest('brief fields must be short text')
   }

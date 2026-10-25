@@ -104,7 +104,7 @@ A running log of the choices behind "Teach Me This File": what I chose, what I r
 - **Chose:** `/api/plan` asks Gemini for JSON that matches a schema, then the server checks it (3–8 steps, every step cites at least one passage id that was sent, required text present and at most 500 characters, a BCP-47 language tag). A plan that fails is asked for once more, then the teacher sees "Couldn't build a lesson from this file. Try again." The server assigns step ids `s1…sN` and defaults the duration to 15 minutes. The model can answer `ok: false` with a reason when the file has nothing to teach.
 - **Rejected:** trusting the schema alone; repairing a bad plan (dropping unknown ids or extra steps).
 - **Why:** the schema shapes the output but does not guarantee ids exist or limits hold, and the tutor endpoint rejects plan text over 500 characters and more than 8 steps. Repairing silently could leave a step with no real source passage, which would make citations fake. One retry keeps the cost and the wait bounded.
-- **Prompt:** the rules and the teacher prompt (in a `<teacher_instructions>` fence) are in the system instruction; the document goes in the user turn inside `<document>` as data. The prompt states the step count (one step per 2.5 minutes, 3–8), one idea per step, and a check question answerable from the step's passages. After a first real run, I added "never join two ideas in one step" and "a check question asks one thing", because the small model merged stages (for example "Condensation and Precipitation").
+- **Prompt:** the rules and the teacher prompt (in a `<teacher_instructions>` fence) are in the system instruction; the document goes in the user turn inside `<document>` as data. The prompt states the step count (one step per 2.5 minutes, 3–8), one idea per step, and a check question answerable from the step's passages. The step count is given as a formula with examples (15 minutes → 6 steps) rather than a number, because the duration is extracted from the teacher prompt in the same call. Real runs led to three changes: a title names exactly one concept and a check question is a single question with one question mark (worded without English-only tests such as "if the title needs _and_", which fail in French); step 1 introduces the document's central idea; the last step connects the ideas when the document shows how they fit together.
 
 ## What I decided not to do (and why)
 
@@ -121,6 +121,7 @@ A running log of the choices behind "Teach Me This File": what I chose, what I r
 - Formulas in PDFs that have a text layer come out as flat text (only scanned pages get LaTeX transcription).
 - The tutor's hidden JSON block depends on the model following instructions; when it does not, that turn has no citation and no progress.
 - Rate limits of the reviewer's free key can interrupt a lesson (shown clearly, with retry).
+- The plan model (`gemini-3.5-flash-lite`) still sometimes puts two concepts in one step, more often in French than in English (for example "L'évaporation et la transpiration"), even after two prompt iterations. Each step still has one check question, and the tutor teaches from that step's passages, so the lesson stays usable.
 
 ## With 4 more hours
 

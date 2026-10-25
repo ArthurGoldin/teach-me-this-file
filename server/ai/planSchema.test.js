@@ -69,6 +69,8 @@ describe('validatePlan', () => {
     ['missing', undefined],
     ['zero', 0],
     ['negative', -5],
+    ['not a number', 'fifteen'],
+    ['infinite', Infinity],
   ])('defaults durationMinutes to 15 when it is %s', (_, durationMinutes) => {
     const result = validatePlan(makeResponse({ brief: { durationMinutes } }), knownIds)
     expect(result.plan.brief.durationMinutes).toBe(15)
@@ -84,6 +86,49 @@ describe('validatePlan', () => {
       style: '',
       durationMinutes: 10,
       notes: '',
+    })
+  })
+
+  it('removes repeated passage ids within a step', () => {
+    const steps = [makeStep({ passageIds: ['p1-1', 'p1-2', 'p1-1'] }), makeStep(), makeStep()]
+    const result = validatePlan(makeResponse({ steps }), knownIds)
+    expect(result.plan.steps[0].passageIds).toEqual(['p1-1', 'p1-2'])
+  })
+
+  it('trims the plan text fields', () => {
+    const steps = [
+      makeStep({
+        title: '  Évaporation \n',
+        objective: ' Expliquer ',
+        checkQuestion: ' Pourquoi ? ',
+      }),
+      makeStep(),
+      makeStep(),
+    ]
+    const response = makeResponse({
+      plan: { title: ' Le cycle ' },
+      brief: { language: ' fr ', audience: ' 7th graders ', style: ' socratic ', notes: ' n ' },
+      steps,
+    })
+    const { plan } = validatePlan(response, knownIds)
+    expect(plan.title).toBe('Le cycle')
+    expect(plan.brief).toMatchObject({
+      language: 'fr',
+      audience: '7th graders',
+      style: 'socratic',
+      notes: 'n',
+    })
+    expect(plan.steps[0]).toMatchObject({
+      title: 'Évaporation',
+      objective: 'Expliquer',
+      checkQuestion: 'Pourquoi ?',
+    })
+  })
+
+  it('trims the ok:false reason', () => {
+    expect(validatePlan({ ok: false, reason: ' Nothing to teach. ' }, knownIds)).toEqual({
+      ok: false,
+      reason: 'Nothing to teach.',
     })
   })
 

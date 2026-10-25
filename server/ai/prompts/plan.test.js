@@ -81,6 +81,19 @@ describe('buildPlanRequest', () => {
     expect(systemInstruction).toContain('"ok": false')
   })
 
+  it('states the one-idea rule without relying on English words', () => {
+    const { systemInstruction } = buildPlanRequest(makeInput())
+    expect(systemInstruction).toContain('names exactly one concept')
+    expect(systemInstruction).toContain('exactly one question mark')
+    expect(systemInstruction).not.toContain('needs "and"')
+  })
+
+  it('asks for a lesson frame: central idea first, connecting step last', () => {
+    const { systemInstruction } = buildPlanRequest(makeInput())
+    expect(systemInstruction).toContain('central idea')
+    expect(systemInstruction).toContain('connects the ideas')
+  })
+
   it('sends every passage, formatted, in the user turn', () => {
     const { contents } = buildPlanRequest(makeInput())
     expect(contents).toHaveLength(1)

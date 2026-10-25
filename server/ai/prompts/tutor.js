@@ -9,8 +9,9 @@ const MAX_PLAN_TEXT = 500
 const MAX_STEPS = 8
 const HISTORY_LIMIT = 12
 const PASSAGE_ID = /^[\w-]{1,32}$/
-// "[app]" messages are the app's channel to the model, so a student may not write one.
-const APP_NOTE = /^\[app\]/i
+// Lines starting with "[app]" are the app's channel to the model (rule 5), so a student may not
+// start any line of a message with it. `m` makes `^` match at every line start.
+const APP_NOTE = /^\s*\[app\]/im
 
 // One sentence per mode. The app picks the mode (design §7.3); the model only follows it.
 export const MODE_INSTRUCTIONS = {
@@ -57,8 +58,8 @@ function checkHistoryItem(item) {
   if (typeof item.text !== 'string') throw invalid('bad history text')
   const max = item.role === 'student' ? MAX_STUDENT_MESSAGE : MAX_TUTOR_MESSAGE
   if (item.text.length > max) throw invalid(`${item.role} message is too long`)
-  if (item.role === 'student' && APP_NOTE.test(item.text.trim())) {
-    throw invalid('student messages may not start with [app]')
+  if (item.role === 'student' && APP_NOTE.test(item.text)) {
+    throw invalid('student messages may not have a line starting with [app]')
   }
 }
 

@@ -95,8 +95,8 @@ describe('validateTutorInput', () => {
     ['a step without key points', { step: { ...makeInput().step, keyPoints: undefined } }],
     ['a step with one key point', { step: { ...makeInput().step, keyPoints: ['a'] } }],
     [
-      'a key point over 200 chars',
-      { step: { ...makeInput().step, keyPoints: ['a', 'b'.repeat(201)] } },
+      'a key point over 300 chars',
+      { step: { ...makeInput().step, keyPoints: ['a', 'b'.repeat(301)] } },
     ],
     ['a last attempt outside guide mode', { mode: 'explain', lastAttempt: true }],
   ])('rejects %s with BAD_REQUEST', (_, overrides) => {

@@ -128,6 +128,12 @@ describe('validatePlan', () => {
     })
   })
 
+  it('accepts key points up to 300 characters', () => {
+    const steps = [makeStep({ keyPoints: ['a', 'b'.repeat(300)] }), makeStep(), makeStep()]
+    const { plan } = validatePlan(makeResponse({ steps }), knownIds)
+    expect(plan.steps[0].keyPoints[1]).toHaveLength(300)
+  })
+
   it('trims the ok:false reason', () => {
     expect(validatePlan({ ok: false, reason: ' Nothing to teach. ' }, knownIds)).toEqual({
       ok: false,
@@ -200,9 +206,9 @@ describe('validatePlan', () => {
       makeResponse({ steps: [makeStep(), makeStep(), makeStep({ keyPoints: ['a', ' '] })] }),
     ],
     [
-      'a key point over 200 chars',
+      'a key point over 300 chars',
       makeResponse({
-        steps: [makeStep(), makeStep(), makeStep({ keyPoints: ['a', 'b'.repeat(201)] })],
+        steps: [makeStep(), makeStep(), makeStep({ keyPoints: ['a', 'b'.repeat(301)] })],
       }),
     ],
     ['a missing language', makeResponse({ brief: { language: undefined } })],

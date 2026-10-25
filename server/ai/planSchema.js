@@ -17,7 +17,8 @@ export const isOptionalPlanText = (value) =>
 // Key points: what the tutor must teach in a step before it asks the check question (D22).
 const MIN_KEY_POINTS = 2
 const MAX_KEY_POINTS = 4
-const MAX_KEY_POINT = 200
+// The plan prompt asks for under 150 characters; the slack absorbs longer scripts and translations.
+const MAX_KEY_POINT = 300
 export const isKeyPoints = (value) =>
   Array.isArray(value) &&
   value.length >= MIN_KEY_POINTS &&

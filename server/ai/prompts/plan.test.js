@@ -97,7 +97,7 @@ describe('buildPlanRequest', () => {
   it('asks for 2 to 4 key points per step: all the student will know, since they never read the file', () => {
     const { systemInstruction } = buildPlanRequest(makeInput())
     expect(systemInstruction).toContain(
-      '"keyPoints": 2 to 4 short statements (each under 200 characters) of the facts and ideas the tutor must teach in this step',
+      '"keyPoints": 2 to 4 short statements (each under 150 characters) of the facts and ideas the tutor must teach in this step',
     )
     expect(systemInstruction).toContain('the key points are everything the student will know')
   })
@@ -112,6 +112,9 @@ describe('buildPlanRequest', () => {
     )
     expect(systemInstruction).toContain(
       'It may not use any fact or term that is not in the key points or in everyday knowledge.',
+    )
+    expect(systemInstruction).toContain(
+      "The check question's situation must not be one of the key points' own examples.",
     )
     expect(systemInstruction).toContain(
       'good: "Why is eating 2/4 of a pizza the same as eating 1/2 of it?"; bad: "What are equivalent fractions?"',

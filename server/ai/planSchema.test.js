@@ -134,6 +134,26 @@ describe('validatePlan', () => {
     expect(plan.steps[0].keyPoints[1]).toHaveLength(300)
   })
 
+  it('decodes HTML entities in plan text, once', () => {
+    const steps = [
+      makeStep({
+        title: 'La pr&#233;cipitation',
+        keyPoints: ['Pluie &amp; neige', 'Caf&#xE9; &AMP;lt;chaud&gt;'],
+        checkQuestion: 'Pourquoi&nbsp;? &#0; &#99999999;',
+      }),
+      makeStep(),
+      makeStep(),
+    ]
+    const { plan } = validatePlan(makeResponse({ plan: { title: 'L&apos;eau' }, steps }), knownIds)
+    expect(plan.title).toBe("L'eau")
+    expect(plan.steps[0].title).toBe('La précipitation')
+    expect(plan.steps[0].keyPoints).toEqual(['Pluie & neige', 'Café &lt;chaud>'])
+    expect(plan.steps[0].checkQuestion).toBe('Pourquoi\u00a0? &#0; &#99999999;')
+    expect(validatePlan({ ok: false, reason: 'Rien &amp; personne.' }, knownIds).reason).toBe(
+      'Rien & personne.',
+    )
+  })
+
   it('trims the ok:false reason', () => {
     expect(validatePlan({ ok: false, reason: ' Nothing to teach. ' }, knownIds)).toEqual({
       ok: false,

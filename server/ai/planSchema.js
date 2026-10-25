@@ -78,6 +78,20 @@ export const PLAN_RESPONSE_SCHEMA = {
 
 const isObject = (value) => typeof value === 'object' && value !== null && !Array.isArray(value)
 
+// The model sometimes writes HTML entities inside the JSON ("pr&#233;cipitation"), and the UI
+// shows text literally. One pass decodes numeric entities and the common named ones, so
+// "&amp;lt;" becomes "&lt;", not "<".
+const NAMED_ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: '\u00a0' }
+const ENTITY = /&(?:#(\d{1,7})|#x([\da-f]{1,6})|(amp|lt|gt|quot|apos|nbsp));/gi
+
+function decodeEntities(text) {
+  return text.replace(ENTITY, (entity, dec, hex, name) => {
+    if (name) return NAMED_ENTITIES[name.toLowerCase()]
+    const code = dec ? Number(dec) : parseInt(hex, 16)
+    return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : entity
+  })
+}
+
 function isValidStep(step, passageIds) {
   return (
     isObject(step) &&
@@ -104,7 +118,7 @@ export function validatePlan(response, passageIds) {
   if (!isObject(response)) throw appError('PLAN_INVALID')
   if (response.ok === false) {
     if (!isPlanText(response.reason)) throw appError('PLAN_INVALID')
-    return { ok: false, reason: response.reason.trim() }
+    return { ok: false, reason: decodeEntities(response.reason).trim() }
   }
 
   const { plan } = response
@@ -122,7 +136,7 @@ export function validatePlan(response, passageIds) {
   }
 
   const { brief } = plan
-  const trim = (value) => (value ?? '').trim()
+  const trim = (value) => decodeEntities(value ?? '').trim()
   const duration = brief.durationMinutes
   return {
     ok: true,

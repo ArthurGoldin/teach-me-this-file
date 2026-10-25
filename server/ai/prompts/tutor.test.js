@@ -185,18 +185,24 @@ describe('buildTutorRequest', () => {
     )
   })
 
-  it('re-explains on a wrong answer but leaves the last step to the student', () => {
+  it('hints by naming the taught idea, never by stating the answer', () => {
     expect(MODE_INSTRUCTIONS.guide).toContain(
-      'then re-explain the relevant key point in 1 or 2 sentences with a different example or from a new angle, but leave out the exact fact the check question asks for',
+      'give one hint that points back to the idea you taught (see rule 3), then ask the check question again',
     )
-    expect(MODE_INSTRUCTIONS.guide).toContain('give one hint (see rule 3)')
+    expect(MODE_INSTRUCTIONS.guide).not.toContain('re-explain the relevant key point')
     const { systemInstruction } = buildTutorRequest(makeInput())
-    expect(systemInstruction).toContain('give one hint as a statement (not a question)')
     expect(systemInstruction).toContain(
-      'Start with the smallest useful hint; make each next hint a little more concrete.',
+      'give one hint as a statement that points the student back to the idea you taught by naming only its topic or the example you used, in a few words, without restating its content',
+    )
+    expect(systemInstruction).toContain('A hint shows the reasoning path, never the fact itself.')
+    expect(systemInstruction).toContain(
+      'Test: a student who reads only your hint and question must not learn any fact from them.',
     )
     expect(systemInstruction).toContain(
-      'never write the sentence that answers the check question: the student must still supply that fact or link.',
+      'never write the sentence that answers the check question, not even inside a hint',
+    )
+    expect(systemInstruction).toContain(
+      'Start with the smallest useful hint; make each next hint a little more precise about which idea to use, never about the answer.',
     )
   })
 

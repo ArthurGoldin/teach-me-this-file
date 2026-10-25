@@ -117,7 +117,10 @@ describe('buildPlanRequest', () => {
       "The check question's situation must not be one of the key points' own examples.",
     )
     expect(systemInstruction).toContain(
-      'good: "Why is eating 2/4 of a pizza the same as eating 1/2 of it?"; bad: "What are equivalent fractions?"',
+      'good: "Why is eating 2/4 of a pizza the same as eating 1/2 of it?" (applies the key point to a new situation); bad: "When are two fractions equal?" (its answer is the key point restated)',
+    )
+    expect(systemInstruction).toContain(
+      'It must need one reasoning step beyond the key points (apply one key point to a new situation, or combine two); its answer must never be a key point restated (if the answer is one key point in other words, move the question to a new situation). This applies to every step, including step 1.',
     )
   })
 

@@ -1,0 +1,17 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-white: #ffffff;
+  --color-surface: #f4f8f8;
+  --color-teal: #0f6e6a;
+  --color-teal-pale: #9fcfc9;
+  --color-amber: #f2a900;
+  --color-slate: #1e2a33;
+  --font-sans: 'Lexend', system-ui, sans-serif;
+}
+
+body {
+  background-color: var(--color-white);
+  color: var(--color-slate);
+  font-family: var(--font-sans);
+}

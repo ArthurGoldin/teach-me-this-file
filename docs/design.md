@@ -243,7 +243,7 @@ Input: teacher prompt + passages in range. Output (JSON schema): `{ ok, reason?,
 
 - Brief extracted from the teacher prompt; defaults: language of the teacher prompt, general audience, guided teaching (explain, then ask), 15 minutes.
 - Steps sized to duration: ≈ 2–2.5 min per step → `clamp(round(duration / 2.5), 3, 8)`; the prompt states the target count.
-- Each step teaches one idea, cites the passages it is built from, and has one check question answerable from those passages and from what the tutor teaches in that step (the student never reads the file, D22).
+- Each step teaches one idea, cites the passages it is built from, and has one check question answerable from those passages and from what the tutor teaches in that step (the student never reads the file, D22). It asks the student to apply or explain the idea in a new situation (predict, compare, give an example, explain why), not to repeat a taught fact.
 - If the content is not teachable (empty, random characters, a shopping receipt with nothing to learn) → `ok: false` with a reason shown to the teacher.
 - If the teacher prompt targets a part of the file ("only chapter 2"), the plan only uses those passages.
 

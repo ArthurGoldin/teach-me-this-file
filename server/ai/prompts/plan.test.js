@@ -101,6 +101,19 @@ describe('buildPlanRequest', () => {
     )
   })
 
+  it('asks for check questions that apply the idea, with a good and a bad example', () => {
+    const { systemInstruction } = buildPlanRequest(makeInput())
+    expect(systemInstruction).toContain(
+      'apply or explain the idea in their own words in a new situation (predict, compare, give an example, explain why)',
+    )
+    expect(systemInstruction).toContain(
+      'never to repeat a fact or sentence the tutor has just taught',
+    )
+    expect(systemInstruction).toContain(
+      'good: "Why does a wet T-shirt dry faster on a sunny day than on a cloudy day?"; bad: "What makes water evaporate?"',
+    )
+  })
+
   it('defaults the style to guided teaching', () => {
     const { systemInstruction } = buildPlanRequest(makeInput())
     expect(systemInstruction).toContain('("guided teaching: explain, then ask" if not stated)')

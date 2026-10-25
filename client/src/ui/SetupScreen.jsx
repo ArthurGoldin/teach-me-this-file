@@ -92,9 +92,10 @@ export default function SetupScreen({ hasKey, onOpenSettings, onLessonReady }) {
   const stopState = (done, current) => (done ? 'done' : current ? 'current' : 'todo')
   const promptDone = prompt.trim() !== ''
 
-  async function handleBuild(options) {
+  // `start` is builder.build, builder.retry or builder.continueWithout.
+  async function handleBuild(start) {
     const teacherPrompt = prompt.trim()
-    const result = await builder.build(teacherPrompt, options)
+    const result = await start(teacherPrompt)
     if (result) onLessonReady({ ...result, teacherPrompt })
   }
 
@@ -111,11 +112,13 @@ export default function SetupScreen({ hasKey, onOpenSettings, onLessonReady }) {
       ? 'Reading scanned pages…'
       : `Reading scanned pages: ${done} of ${total} done`
   }
-  const notTranscribed = buildError ? (error.notTranscribed ?? []) : []
+  // Offered under the same conditions as Build lesson, and only once the rate limit has passed.
+  const notTranscribed =
+    buildError && rangeCheck?.ok && hasKey && waitSeconds === 0 ? (error.notTranscribed ?? []) : []
 
   function handleAction(action) {
     // Only a failed build offers retry: read failures are about the file (or need a reload).
-    if (action === 'retry') handleBuild()
+    if (action === 'retry') handleBuild(builder.retry)
     if (action === 'reload') window.location.reload()
     if (action === 'settings') onOpenSettings(null)
     if (action === 'pick-file') fileInputRef.current?.click()
@@ -222,7 +225,7 @@ export default function SetupScreen({ hasKey, onOpenSettings, onLessonReady }) {
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                 <button
                   type="button"
-                  onClick={handleBuild}
+                  onClick={() => handleBuild(builder.build)}
                   disabled={!canBuild}
                   className="rounded-xl bg-teal px-6 py-3 text-base font-medium text-white hover:bg-teal/90 disabled:cursor-not-allowed disabled:bg-slate/10 disabled:text-slate/45"
                 >
@@ -250,7 +253,7 @@ export default function SetupScreen({ hasKey, onOpenSettings, onLessonReady }) {
             {notTranscribed.length > 0 && (
               <button
                 type="button"
-                onClick={() => handleBuild({ skipUntranscribed: true })}
+                onClick={() => handleBuild(builder.continueWithout)}
                 className="self-start rounded-lg px-4 py-2 font-medium text-teal underline underline-offset-2 hover:bg-surface"
               >
                 Continue without {notTranscribed.length === 1 ? 'page' : 'pages'}{' '}

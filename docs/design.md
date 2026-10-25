@@ -131,8 +131,9 @@ LessonDocument = {
   pageCount: 12,
   range: { from: 1, to: 12 },        // pages used for the lesson
   passages: Passage[],
-  skipped: [{ pages: [13, 14], reason: 'outside-range' | 'unreadable' | 'not-transcribed' }],
-  // unreadable: Gemini found no legible text (or the page could not be rendered / was too large);
+  skipped: [{ pages: [13, 14], reason: 'outside-range' | 'unreadable' | 'not-sent' | 'not-transcribed' }],
+  // unreadable: Gemini found no legible text; not-sent: the page image could not be made or was
+  // too large to send;
   // not-transcribed: the teacher chose "Continue without pages N–M" after a rate limit
   // page images for transcribed pages: object URLs, in memory only (not persisted)
 }
@@ -319,21 +320,22 @@ Errors after the stream started: `event: error` + `data: {"code":"RATE_LIMITED",
 
 All server errors are JSON `{ error: { code, message, retryAfterSeconds? } }` (or an SSE `error` event). Provider errors are mapped in one place (`server/http/errors.js`); raw provider messages are never forwarded.
 
-| Code                | Detected                                                                                             | UI                                                                                    |
-| ------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `NO_KEY`            | client before request (no key and server has no env key, from `GET /api/config`)                     | Settings dialog opens: "Paste a Gemini API key to start" + link to AI Studio          |
-| `INVALID_KEY`       | Gemini 400/401/403 key errors                                                                        | "Gemini rejected this API key." Opens settings; lesson state kept                     |
-| `RATE_LIMITED`      | Gemini 429                                                                                           | "Gemini's free-tier limit was reached. Try again in N s." Retry button with countdown |
-| `MODEL_BUSY`        | Gemini 500/503                                                                                       | "Gemini is busy right now." Retry button                                              |
-| `BLOCKED`           | prompt/response blocked by safety                                                                    | "Gemini declined to answer this. Try rephrasing."                                     |
-| `NETWORK`           | fetch failure, offline, or a stream that ends without `done` (e.g. the function hit its 300 s limit) | "Connection lost." Partial text kept, Retry                                           |
-| `PAYLOAD_TOO_LARGE` | 413                                                                                                  | "This page image is too large." (should not happen; client downscales)                |
-| `UNSUPPORTED_FILE`  | client (type check)                                                                                  | "DOCX isn't supported yet. Export it as PDF and try again." (per type)                |
-| `FILE_TOO_LARGE`    | client (> 50 MB)                                                                                     | Size message                                                                          |
-| `CORRUPT_FILE`      | client (pdf.js throws, password-protected PDF)                                                       | "This PDF couldn't be opened."                                                        |
-| `NO_CONTENT`        | client (no text and no images) or plan `ok:false`                                                    | Reason shown on setup screen; teacher can pick another file                           |
-| `PLAN_INVALID`      | server (schema invalid twice)                                                                        | "Couldn't build a lesson from this file. Try again."                                  |
-| `INTERNAL`          | anything else                                                                                        | "Something went wrong on our side." Retry                                             |
+| Code                 | Detected                                                                                             | UI                                                                                    |
+| -------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `NO_KEY`             | client before request (no key and server has no env key, from `GET /api/config`)                     | Settings dialog opens: "Paste a Gemini API key to start" + link to AI Studio          |
+| `INVALID_KEY`        | Gemini 400/401/403 key errors                                                                        | "Gemini rejected this API key." Opens settings; lesson state kept                     |
+| `RATE_LIMITED`       | Gemini 429                                                                                           | "Gemini's free-tier limit was reached. Try again in N s." Retry button with countdown |
+| `MODEL_BUSY`         | Gemini 500/503                                                                                       | "Gemini is busy right now." Retry button                                              |
+| `BLOCKED`            | prompt/response blocked by safety                                                                    | "Gemini declined to answer this. Try rephrasing."                                     |
+| `NETWORK`            | fetch failure, offline, or a stream that ends without `done` (e.g. the function hit its 300 s limit) | "Connection lost." Partial text kept, Retry                                           |
+| `PAYLOAD_TOO_LARGE`  | 413                                                                                                  | "This page image is too large." (should not happen; client downscales)                |
+| `UNSUPPORTED_FILE`   | client (type check)                                                                                  | "DOCX isn't supported yet. Export it as PDF and try again." (per type)                |
+| `FILE_TOO_LARGE`     | client (> 50 MB)                                                                                     | Size message                                                                          |
+| `CORRUPT_FILE`       | client (pdf.js throws, password-protected PDF)                                                       | "This PDF couldn't be opened."                                                        |
+| `NO_CONTENT`         | client (no text and no images) or plan `ok:false`                                                    | Reason shown on setup screen; teacher can pick another file                           |
+| `PLAN_INVALID`       | server (schema invalid twice)                                                                        | "Couldn't build a lesson from this file. Try again."                                  |
+| `TRANSCRIBE_INVALID` | server (transcription answer is not JSON)                                                            | "Couldn't read the scanned pages. Try again."                                         |
+| `INTERNAL`           | anything else                                                                                        | "Something went wrong on our side." Retry                                             |
 
 Loading states: setup shows real stages ("Reading file… Reading scanned pages 3 of 8… Planning lesson…") with Cancel; tutor shows a typing indicator until the first delta. Empty states: setup drop zone with an example prompt; the chat never starts empty (automatic first turn).
 

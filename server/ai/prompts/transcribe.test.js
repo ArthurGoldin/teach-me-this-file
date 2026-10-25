@@ -31,6 +31,10 @@ describe('validateTranscribeInput', () => {
     ['an empty image', { pages: [{ page: 1, imageBase64: '' }] }],
     ['an image that is not a string', { pages: [{ page: 1, imageBase64: 42 }] }],
     ['an image over 3,000,000 chars', { pages: [{ page: 1, imageBase64: 'A'.repeat(3_000_001) }] }],
+    [
+      'an image with characters outside base64',
+      { pages: [{ page: 1, imageBase64: 'data:image/jpeg;base64,AAA' }] },
+    ],
     ['a duplicate page number', { pages: [pages[0], pages[0]] }],
   ])('rejects %s with BAD_REQUEST', (_, body) => {
     expect(() => validateTranscribeInput(body)).toThrow(AppError)

@@ -34,6 +34,13 @@ describe('generateJson', () => {
   })
 })
 
+it('reports unparseable JSON with the code the caller names', async () => {
+  generateContent.mockResolvedValue({ text: 'not json' })
+  await expect(
+    gemini.generateJson({ ...args, invalidCode: 'TRANSCRIBE_INVALID' }),
+  ).rejects.toMatchObject({ code: 'TRANSCRIBE_INVALID', status: 502 })
+})
+
 describe('streamText', () => {
   it('throws BLOCKED on a blocking finish reason', async () => {
     generateContentStream.mockResolvedValue(

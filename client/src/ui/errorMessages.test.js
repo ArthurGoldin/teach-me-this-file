@@ -46,4 +46,11 @@ describe('messageFor', () => {
     expect(messageFor('INTERNAL')).toEqual(messageFor('SOMETHING_NEW'))
     expect(messageFor('INTERNAL').action).toBe('retry')
   })
+
+  it('says the scanned pages could not be read, with a retry', () => {
+    expect(messageFor('TRANSCRIBE_INVALID')).toEqual({
+      text: "Couldn't read the scanned pages. Try again.",
+      action: 'retry',
+    })
+  })
 })

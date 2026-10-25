@@ -55,4 +55,22 @@ describe('chunkPages', () => {
     const [passage] = chunkPages([{ page: 1, text, origin: 'transcription' }])
     expect(passage.text).toBe(text)
   })
+
+  it('splits a long transcribed table by rows and repeats its header in each passage', () => {
+    const header = '| Object | Distance (m) |\n| --- | --- |'
+    const rows = Array.from({ length: 60 }, (_, i) => `| Object number ${i} | ${i * 10} |`)
+    const text = `Intro paragraph.\n\n${header}\n${rows.join('\n')}`
+    const passages = chunkPages([{ page: 2, text, origin: 'transcription' }])
+    const tables = passages.filter((p) => p.text.includes('| --- |'))
+    expect(tables.length).toBeGreaterThan(1)
+    for (const p of passages) expect(p.text.length).toBeLessThanOrEqual(1200)
+    for (const p of tables)
+      expect(p.text.slice(p.text.indexOf('| Object |'))).toMatch(
+        /^\| Object \| Distance \(m\) \|\n\| --- \| --- \|\n\| Object number/,
+      )
+    const allRows = tables.flatMap((p) =>
+      p.text.split('\n').filter((l) => l.startsWith('| Object number')),
+    )
+    expect(allRows).toEqual(rows)
+  })
 })

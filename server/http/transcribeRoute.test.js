@@ -69,6 +69,13 @@ it('passes a rate limit through as 429 RATE_LIMITED', async () => {
   expect((await res.json()).error).toMatchObject({ code: 'RATE_LIMITED', retryAfterSeconds: 20 })
 })
 
+it('reports an unreadable model answer as 502 TRANSCRIBE_INVALID', async () => {
+  const generateJson = vi.fn().mockResolvedValue({ pages: [] })
+  await start(generateJson)
+  await post()
+  expect(generateJson.mock.calls[0][0].invalidCode).toBe('TRANSCRIBE_INVALID')
+})
+
 it('rejects a bad body with 400 BAD_REQUEST without calling Gemini', async () => {
   const generateJson = vi.fn()
   await start(generateJson)

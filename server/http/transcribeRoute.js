@@ -23,6 +23,7 @@ export function createTranscribeRoute({ createGemini }) {
     const result = await gemini.generateJson({
       ...buildTranscribeRequest(pages),
       schema: TRANSCRIBE_SCHEMA,
+      invalidCode: 'TRANSCRIBE_INVALID',
       signal: controller.signal,
     })
     log.info('pages_transcribed', {

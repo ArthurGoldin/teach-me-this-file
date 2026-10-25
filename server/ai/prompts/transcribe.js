@@ -3,6 +3,8 @@ import { badRequest } from '../../http/errors.js'
 const MAX_PAGES = 8
 // The client sends JPEGs of at most 1600 px; a base64 string this long is far beyond that.
 const MAX_IMAGE_CHARS = 3_000_000
+// Plain base64 only: no data: URL prefix, no whitespace.
+const BASE64 = /^[A-Za-z0-9+/=]+$/
 // No real page holds this much text: anything longer is cut, not rejected.
 export const MAX_MARKDOWN = 20_000
 
@@ -36,7 +38,7 @@ export function validateTranscribeInput(body) {
   for (const item of pages) {
     if (!Number.isInteger(item?.page) || item.page < 1) throw badRequest('bad page number')
     const image = item.imageBase64
-    if (typeof image !== 'string' || image === '' || image.length > MAX_IMAGE_CHARS) {
+    if (typeof image !== 'string' || image.length > MAX_IMAGE_CHARS || !BASE64.test(image)) {
       throw badRequest('bad page image')
     }
   }

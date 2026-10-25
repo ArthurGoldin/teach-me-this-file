@@ -23,12 +23,16 @@ export function combinePages({ textPages, transcriptions, notTranscribed }) {
   const transcribed = transcriptions
     .filter((t) => t.readable)
     .map(({ page, markdown }) => ({ page, text: markdown, origin: 'transcription' }))
-  const unreadable = transcriptions.filter((t) => !t.readable).map((t) => t.page)
+  // `sent: false`: the page image could not be made, or was too large to send.
+  const failed = transcriptions.filter((t) => !t.readable)
+  const unreadable = failed.filter((t) => t.sent !== false).map((t) => t.page)
+  const notSent = failed.filter((t) => t.sent === false).map((t) => t.page)
   return {
     pages: [...textPages, ...transcribed].sort(byPage),
     skipped: [
       ...skipGroup(unreadable, 'unreadable'),
       ...skipGroup(notTranscribed, 'not-transcribed'),
+      ...skipGroup(notSent, 'not-sent'),
     ],
   }
 }

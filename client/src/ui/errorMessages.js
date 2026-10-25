@@ -60,6 +60,8 @@ export function messageFor(code, { retryAfterSeconds, fileType, reloadNeeded } =
       }
     case 'NO_CONTENT':
       return { text: 'No readable text was found in this file.', action: 'pick-file' }
+    case 'TRANSCRIBE_INVALID':
+      return { text: "Couldn't read the scanned pages. Try again.", action: 'retry' }
     case 'PLAN_INVALID':
       return { text: "Couldn't build a lesson from this file. Try again.", action: 'retry' }
     default:

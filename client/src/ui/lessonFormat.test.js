@@ -81,11 +81,13 @@ describe('includedSummary', () => {
       { pages: [181, 182], reason: 'outside-range' },
       { pages: [30, 31, 32], reason: 'unreadable' },
       { pages: [40], reason: 'not-transcribed' },
+      { pages: [41], reason: 'not-sent' },
     ]
     expect(includedSummary({ ...doc, skipped })).toEqual([
       'This lesson uses pages 1–180 of 412.',
       'Skipped pages 30–32: Gemini found no legible text.',
       'Skipped page 40: not transcribed (Gemini rate limit).',
+      "Skipped page 41: couldn't be prepared for reading.",
     ])
   })
 })

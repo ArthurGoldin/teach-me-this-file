@@ -63,6 +63,7 @@ const SKIP_REASONS = {
   'outside-range': 'outside the chosen range',
   unreadable: 'Gemini found no legible text',
   'not-transcribed': 'not transcribed (Gemini rate limit)',
+  'not-sent': "couldn't be prepared for reading",
 }
 
 // "What's included" lines for the lesson menu: the range used and every skipped group.

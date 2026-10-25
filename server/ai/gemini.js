@@ -38,7 +38,14 @@ export function createGemini({ apiKey }) {
     }
   }
 
-  async function generateJson({ systemInstruction, contents, schema, signal }) {
+  // `invalidCode`: the error code for an answer that is not JSON (each endpoint has its own copy).
+  async function generateJson({
+    systemInstruction,
+    contents,
+    schema,
+    signal,
+    invalidCode = 'PLAN_INVALID',
+  }) {
     try {
       const response = await ai.models.generateContent({
         model: MODEL_ID,
@@ -55,7 +62,7 @@ export function createGemini({ apiKey }) {
       try {
         return JSON.parse(response.text)
       } catch {
-        throw appError('PLAN_INVALID')
+        throw appError(invalidCode)
       }
     } catch (err) {
       throw toAppError(err)

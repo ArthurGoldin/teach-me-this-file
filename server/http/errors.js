@@ -8,6 +8,7 @@ const MESSAGES = {
   PAYLOAD_TOO_LARGE: 'This page image is too large.',
   BAD_REQUEST: 'The request was not valid.',
   PLAN_INVALID: "Couldn't build a lesson from this file. Try again.",
+  TRANSCRIBE_INVALID: "Couldn't read the scanned pages. Try again.",
   INTERNAL: 'Something went wrong on our side.',
 }
 
@@ -29,6 +30,7 @@ const STATUSES = {
   PAYLOAD_TOO_LARGE: 413,
   BAD_REQUEST: 400,
   PLAN_INVALID: 502,
+  TRANSCRIBE_INVALID: 502,
   INTERNAL: 500,
 }
 

@@ -47,6 +47,17 @@ describe('combinePages', () => {
     })
   })
 
+  it('records pages that were never sent apart from unreadable ones', () => {
+    const transcriptions = [
+      { page: 2, readable: false, markdown: '', sent: false },
+      { page: 4, readable: false, markdown: '' },
+    ]
+    expect(combinePages({ textPages, transcriptions, notTranscribed: [] }).skipped).toEqual([
+      { pages: [4], reason: 'unreadable' },
+      { pages: [2], reason: 'not-sent' },
+    ])
+  })
+
   it('records unreadable and not transcribed pages as skipped, sorted', () => {
     const transcriptions = [
       { page: 5, readable: false, markdown: '' },

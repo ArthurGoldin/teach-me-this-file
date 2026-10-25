@@ -26,6 +26,9 @@ function wait(seconds, signal) {
   })
 }
 
+// A page whose image could not be made, or was too large to send: skipped as 'not-sent'.
+const notSent = (page) => ({ page, readable: false, markdown: '', sent: false })
+
 const revoke = (entries) => entries.forEach((t) => t.objectUrl && URL.revokeObjectURL(t.objectUrl))
 
 // Drives the create-lesson flow (design §6.1): read the file, choose a page range, transcribe
@@ -45,12 +48,16 @@ export function useLessonBuilder() {
   // Transcriptions of this document by page: { page, readable, markdown, objectUrl? }. Kept
   // across Retry, so a page is sent to Gemini once.
   const transcriptsRef = useRef(new Map())
+  // The teacher chose "Continue without pages N–M": a Retry (e.g. of the plan call) keeps
+  // building without them. Cleared by Build lesson, a new file or a new range.
+  const skipRef = useRef(false)
 
   function replaceRaw(doc) {
     rawRef.current?.destroy()
     rawRef.current = doc
     revoke([...transcriptsRef.current.values()])
     transcriptsRef.current = new Map()
+    skipRef.current = false
     setRaw(doc)
   }
 
@@ -75,6 +82,16 @@ export function useLessonBuilder() {
   }
 
   const readyStage = (doc, docRange) => (doc && docRange.needsPicker ? 'choose-range' : 'idle')
+
+  // A new range makes a build error (and its page list) stale.
+  function changeRange(next) {
+    setRange(next)
+    skipRef.current = false
+    if (stage === 'error') {
+      setError(null)
+      setStage(readyStage(raw, next))
+    }
+  }
 
   function fail(err, signal, details) {
     if (signal.aborted) return
@@ -120,22 +137,26 @@ export function useLessonBuilder() {
         if (fitsInRequest(item)) items.push(item)
         else {
           URL.revokeObjectURL(objectUrl)
-          transcriptsRef.current.set(page, { page, readable: false, markdown: '' })
+          transcriptsRef.current.set(page, notSent(page))
         }
       } catch {
-        transcriptsRef.current.set(page, { page, readable: false, markdown: '' })
+        transcriptsRef.current.set(page, notSent(page))
       }
     }
     return items
   }
 
-  async function sendBatch(batch, signal) {
+  // `run.waited`: one automatic rate-limit wait per build, not per batch.
+  async function sendBatch(batch, signal, run) {
     const body = batch.map(({ page, base64 }) => ({ page, imageBase64: base64 }))
     try {
       return await transcribePages(body, { signal })
     } catch (err) {
       const seconds = err.retryAfterSeconds
-      if (err.code !== 'RATE_LIMITED' || !(seconds <= MAX_AUTO_WAIT_SECONDS)) throw err
+      if (err.code !== 'RATE_LIMITED' || run.waited || !(seconds <= MAX_AUTO_WAIT_SECONDS)) {
+        throw err
+      }
+      run.waited = true
       // One automatic wait, with a countdown, then the same batch once more.
       setRateWait({ retryAfterSeconds: seconds, at: Date.now() })
       setStage('waiting')
@@ -148,7 +169,7 @@ export function useLessonBuilder() {
 
   // Transcribes the scanned pages that have no transcription yet, batch by batch. After a rate
   // limit the pages still missing are attached to the error ("Continue without pages N–M").
-  async function transcribe(scanPages, signal) {
+  async function transcribe(scanPages, signal, run) {
     const transcripts = transcriptsRef.current
     const missing = () => scanPages.filter((page) => !transcripts.has(page))
     if (missing().length === 0) return
@@ -159,7 +180,7 @@ export function useLessonBuilder() {
     const items = await renderPages(missing(), signal)
     try {
       for (const batch of makeBatches(items)) {
-        const { pages } = await sendBatch(batch, signal)
+        const { pages } = await sendBatch(batch, signal, run)
         for (const result of pages) {
           const { objectUrl } = batch.find((item) => item.page === result.page)
           if (!result.readable) URL.revokeObjectURL(objectUrl)
@@ -176,12 +197,11 @@ export function useLessonBuilder() {
     }
   }
 
-  // `skipUntranscribed`: after a rate limit, build without the pages not transcribed yet.
-  async function build(teacherPrompt, { skipUntranscribed = false } = {}) {
+  async function run(teacherPrompt) {
     const signal = startTask()
+    const { textPages, scanPages, skipped } = selectPages(raw.pages, range)
     try {
-      const { textPages, scanPages, skipped } = selectPages(raw.pages, range)
-      if (!skipUntranscribed) await transcribe(scanPages, signal)
+      if (!skipRef.current) await transcribe(scanPages, signal, { waited: false })
       if (signal.aborted) return null
       const done = scanPages.filter((p) => transcriptsRef.current.has(p))
       const transcriptions = done.map((p) => transcriptsRef.current.get(p))
@@ -222,9 +242,27 @@ export function useLessonBuilder() {
       return { document, plan: result.plan, pageImages }
     } catch (err) {
       setRateWait(null)
-      fail(err, signal, { notTranscribed: err.notTranscribed })
+      // "Continue without" only when the lesson would still have some text.
+      const hasText =
+        textPages.length > 0 || scanPages.some((p) => transcriptsRef.current.get(p)?.readable)
+      fail(err, signal, { notTranscribed: hasText ? err.notTranscribed : undefined })
       return null
     }
+  }
+
+  // Build lesson: transcribe what is missing, then plan.
+  function build(teacherPrompt) {
+    skipRef.current = false
+    return run(teacherPrompt)
+  }
+
+  // Try again after an error: keeps an earlier "Continue without" choice.
+  const retry = (teacherPrompt) => run(teacherPrompt)
+
+  // After a rate limit: build without the scanned pages not transcribed yet.
+  function continueWithout(teacherPrompt) {
+    skipRef.current = true
+    return run(teacherPrompt)
   }
 
   function cancel() {
@@ -240,10 +278,12 @@ export function useLessonBuilder() {
     rateWait,
     raw,
     range,
-    setRange,
+    setRange: changeRange,
     error,
     readSelectedFile,
     build,
+    retry,
+    continueWithout,
     cancel,
   }
 }

@@ -2,9 +2,8 @@ import { MAX_SCAN_PAGES, checkRange } from '../document/budget.js'
 
 // Shown when the whole file does not fit in one lesson. `unit` is "page" or "section".
 export default function RangePicker({ raw, range, onChange, unit }) {
-  const { ok, scanPages } = checkRange(raw.pages, range)
+  const { ok, inBounds, scanPages } = checkRange(raw.pages, range)
   const last = raw.pages.at(-1).page
-  const valid = range.from >= 1 && range.to <= last && range.from <= range.to
 
   function update(field, value) {
     const number = Number.parseInt(value, 10)
@@ -13,7 +12,7 @@ export default function RangePicker({ raw, range, onChange, unit }) {
   }
 
   let status = `This lesson uses ${unit}s ${range.from}–${range.to} of ${raw.pageCount}.`
-  if (!valid) status = `Pick ${unit}s between 1 and ${last}, with "from" before "to".`
+  if (!inBounds) status = `Pick ${unit}s between 1 and ${last}, with "from" before "to".`
   else if (!ok) {
     status =
       scanPages > MAX_SCAN_PAGES
@@ -43,7 +42,7 @@ export default function RangePicker({ raw, range, onChange, unit }) {
           </label>
         ))}
       </div>
-      <p aria-live="polite" className={`text-sm ${valid && ok ? 'text-teal' : 'font-medium'}`}>
+      <p aria-live="polite" className={`text-sm ${ok ? 'text-teal' : 'font-medium'}`}>
         {status}
       </p>
     </fieldset>

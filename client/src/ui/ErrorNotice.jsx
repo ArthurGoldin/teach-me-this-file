@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import { messageFor } from './errorMessages.js'
 
 const ACTION_LABELS = {
@@ -7,25 +6,9 @@ const ACTION_LABELS = {
   'pick-file': 'Choose another file',
 }
 
-// Seconds left before a rate-limited request may be retried. `error.at` is when it failed.
-function useSecondsLeft(error) {
-  const deadline = error.at + (error.retryAfterSeconds ?? 0) * 1000
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    if (deadline <= Date.now()) return undefined
-    const timer = setInterval(() => {
-      const time = Date.now()
-      setNow(time)
-      if (time >= deadline) clearInterval(timer)
-    }, 1000)
-    return () => clearInterval(timer)
-  }, [deadline])
-  return Math.max(0, Math.ceil((deadline - now) / 1000))
-}
-
 // An error with the one action that fixes it (design §9). `onAction` gets the action name.
-export default function ErrorNotice({ error, onAction }) {
-  const left = useSecondsLeft(error)
+// `secondsLeft` (from useSecondsLeft) holds the retry back while a rate limit lasts.
+export default function ErrorNotice({ error, secondsLeft: left = 0, onAction }) {
   const { text, action } = messageFor(error.code, { ...error, retryAfterSeconds: left })
   const waiting = action === 'retry' && left > 0
 

@@ -96,13 +96,14 @@ export default function App() {
         />
       )}
 
-      <SettingsDialog
-        open={settings !== null}
-        reason={settings?.reason}
-        hasServerKey={hasServerKey}
-        onClose={closeSettings}
-        onKeyChange={() => setHasUserKey(Boolean(getKey()))}
-      />
+      {settings && (
+        <SettingsDialog
+          reason={settings.reason}
+          hasServerKey={hasServerKey}
+          onClose={closeSettings}
+          onKeyChange={() => setHasUserKey(Boolean(getKey()))}
+        />
+      )}
     </div>
   )
 }

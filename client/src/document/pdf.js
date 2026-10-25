@@ -7,8 +7,10 @@ GlobalWorkerOptions.workerSrc = workerUrl
 
 // Thin wrapper over pdf.js: page text and page images, nothing else.
 // Throws whatever pdf.js throws (corrupt file, password); readFile maps that to CORRUPT_FILE.
+// The caller must call destroy() when the document is no longer needed.
 export async function openPdf(arrayBuffer) {
-  const pdf = await getDocument({ data: arrayBuffer }).promise
+  const loadingTask = getDocument({ data: arrayBuffer })
+  const pdf = await loadingTask.promise
 
   async function getPageText(n) {
     const page = await pdf.getPage(n)
@@ -30,5 +32,8 @@ export async function openPdf(arrayBuffer) {
     return canvasToJpeg(canvas)
   }
 
-  return { pageCount: pdf.numPages, getPageText, renderPageJpeg }
+  // Frees the parsed document and its worker. Safe to call more than once.
+  const destroy = () => loadingTask.destroy()
+
+  return { pageCount: pdf.numPages, getPageText, renderPageJpeg, destroy }
 }

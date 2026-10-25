@@ -45,7 +45,10 @@ export function messageFor(code, { retryAfterSeconds, fileType } = {}) {
       return { text: 'This file is over 50 MB. Pick a smaller file.', action: 'pick-file' }
     case 'CORRUPT_FILE':
       return {
-        text: "This PDF couldn't be opened. It may be damaged or password-protected.",
+        text:
+          fileType === 'PDF'
+            ? "This PDF couldn't be opened. It may be damaged or password-protected."
+            : "This file couldn't be read. It may be damaged.",
         action: 'pick-file',
       }
     case 'NO_CONTENT':

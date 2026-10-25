@@ -37,10 +37,16 @@ export function applyRange(pages, range) {
   }
 }
 
+// `inBounds`: whole numbers with 1 <= from <= to <= last page. `ok`: in bounds and within the
+// token and scan-page limits. The single check behind the range picker and the Build button.
 export function checkRange(pages, range) {
-  const selected = inRangeOf(pages, range)
+  const { from, to } = range
+  const last = pages.at(-1)?.page ?? 0
+  const inBounds =
+    Number.isInteger(from) && Number.isInteger(to) && 1 <= from && from <= to && to <= last
+  const selected = inBounds ? inRangeOf(pages, range) : []
   const tokens = selected.reduce((sum, p) => sum + pageTokens(p), 0)
   const scanPages = selected.filter((p) => p.isScan).length
-  const ok = selected.length > 0 && tokens <= PLAN_TOKEN_BUDGET && scanPages <= MAX_SCAN_PAGES
-  return { tokens, scanPages, ok }
+  const ok = inBounds && tokens <= PLAN_TOKEN_BUDGET && scanPages <= MAX_SCAN_PAGES
+  return { tokens, scanPages, inBounds, ok }
 }

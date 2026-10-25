@@ -1,13 +1,12 @@
-// A running stage with an optional "n of m" count and a Cancel button. Announced politely to
-// screen readers. Without a count the bar slides (or stays still with reduced motion).
+// A running stage with an optional "n of m" count and a Cancel button. Without a count the bar
+// slides (or stays still with reduced motion). Not a live region: SetupScreen announces the
+// stage once, so screen readers do not hear every page number.
 export default function BuildProgress({ label, progress, onCancel }) {
   const percent = progress?.total ? Math.round((progress.done / progress.total) * 100) : null
   return (
     <div className="flex flex-col gap-3 rounded-xl bg-surface p-4">
       <div className="flex items-center justify-between gap-4">
-        <p aria-live="polite" className="font-medium">
-          {label}
-        </p>
+        <p className="font-medium">{label}</p>
         <button
           type="button"
           onClick={onCancel}

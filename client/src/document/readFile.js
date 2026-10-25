@@ -23,9 +23,18 @@ function throwIfAborted(signal) {
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
 }
 
+async function loadPdfModule() {
+  try {
+    // pdf.js is large (~430 kB): load it only when a PDF is picked, so the first screen stays fast.
+    return await import('./pdf.js')
+  } catch {
+    // The chunk could not be downloaded (offline, or a new deploy replaced it).
+    throw new DocumentError('NETWORK', 'Could not load the PDF reader.')
+  }
+}
+
 async function readPdf(file, { onProgress, signal }) {
-  // pdf.js is large (~450 kB): load it only when a PDF is picked, so the first screen stays fast.
-  const { openPdf } = await import('./pdf.js')
+  const { openPdf } = await loadPdfModule()
   let pdf
   try {
     pdf = await openPdf(await file.arrayBuffer())
@@ -33,15 +42,25 @@ async function readPdf(file, { onProgress, signal }) {
     // pdf.js throws for broken files and for password-protected ones alike.
     throw new DocumentError('CORRUPT_FILE', 'This PDF could not be opened.')
   }
-  const pages = []
-  for (let page = 1; page <= pdf.pageCount; page += 1) {
-    throwIfAborted(signal)
-    onProgress?.({ done: page - 1, total: pdf.pageCount })
-    const text = await pdf.getPageText(page)
-    pages.push({ page, text, isScan: isScanPage(text) })
+  try {
+    const pages = []
+    for (let page = 1; page <= pdf.pageCount; page += 1) {
+      throwIfAborted(signal)
+      onProgress?.({ done: page - 1, total: pdf.pageCount })
+      const text = await pdf.getPageText(page)
+      pages.push({ page, text, isScan: isScanPage(text) })
+    }
+    const { pageCount, renderPageJpeg, destroy } = pdf
+    return { kind: 'pdf', pageCount, pages, renderPageJpeg, destroy }
+  } catch (err) {
+    pdf.destroy()
+    if (err.name === 'AbortError') throw err
+    throw new DocumentError('CORRUPT_FILE', 'A page of this PDF could not be read.')
   }
-  return { kind: 'pdf', pageCount: pdf.pageCount, pages, renderPageJpeg: pdf.renderPageJpeg }
 }
+
+// Text files and images hold no resources.
+const noop = () => {}
 
 async function readText(file) {
   const sections = splitTextIntoSections(await file.text())
@@ -55,6 +74,7 @@ async function readText(file) {
     renderPageJpeg: () => {
       throw new Error('Text files have no page images.')
     },
+    destroy: noop,
   }
 }
 
@@ -64,17 +84,25 @@ function readImage(file) {
     pageCount: 1,
     pages: [{ page: 1, text: '', isScan: true }],
     renderPageJpeg: () => imageFileToJpeg(file),
+    destroy: noop,
   }
 }
 
 // Reads a picked file into pages (design §6.1). Browser only: pdf.js worker, canvas.
-// -> RawDocument { name, kind, pageCount, pages: [{ page, text, isScan }], renderPageJpeg(page) }
+// -> RawDocument { name, kind, pageCount, pages: [{ page, text, isScan }], renderPageJpeg(page),
+//    destroy() }. Every failure is a DocumentError (or an AbortError after `signal` fires).
 export async function readFile(file, { onProgress, signal } = {}) {
   const kind = kindOf(file)
   if (!kind) throw new DocumentError('UNSUPPORTED_FILE', 'This file type is not supported.')
   if (file.size > MAX_FILE_BYTES) throw new DocumentError('FILE_TOO_LARGE', 'File is over 50 MB.')
 
   const readers = { pdf: readPdf, text: readText, image: readImage }
-  const raw = await readers[kind](file, { onProgress, signal })
-  return { name: file.name, ...raw }
+  try {
+    const raw = await readers[kind](file, { onProgress, signal })
+    return { name: file.name, ...raw }
+  } catch (err) {
+    if (err instanceof DocumentError || err.name === 'AbortError') throw err
+    // e.g. the browser could not read the file from disk.
+    throw new DocumentError('CORRUPT_FILE', 'This file could not be read.')
+  }
 }

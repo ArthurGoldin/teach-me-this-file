@@ -112,7 +112,7 @@ A running log of the choices behind "Teach Me This File": what I chose, what I r
 - **Rejected:** a multi-screen wizard; a modal error dialog; making the prompt required.
 - **Why:** one screen is faster on a phone and the route teaches the visual language before the lesson starts. An empty prompt still yields a sensible lesson, so blocking on it would only add friction.
 - **Details:** pdf.js (~430 kB) is loaded with a dynamic `import()` only when a PDF is picked, so the first screen stays small. An empty text file is reported as `NO_CONTENT` as soon as it is read, not after pressing Build. The file is read in the browser with a page-by-page progress line and Cancel (an `AbortController` stops reading and the plan request). PDF pages are rendered for transcription so their long side is exactly 1,600 px (vector pages can be scaled up for sharper text); photos are only scaled down.
-- **Temporary limit:** scanned pages and images are not transcribed yet. The setup screen says "Scanned pages aren't supported yet" and builds from the text pages only (scan pages are recorded as skipped); a file with only scans ends in `NO_CONTENT`.
+- **Temporary limit:** scanned pages and images are not transcribed yet. The setup screen says "Scanned pages aren't supported yet" and builds from the text pages only (scan pages are recorded as skipped); a range with only scanned pages says so up front and disables Build lesson.
 
 ## What I decided not to do (and why)
 

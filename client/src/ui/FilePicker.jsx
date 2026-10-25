@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 const ACCEPT = '.pdf,.jpg,.jpeg,.png,.webp,.txt,.md,application/pdf,image/jpeg,image/png,image/webp'
 
@@ -21,6 +21,20 @@ function FileIcon() {
 // `summary` is the line under the file name, e.g. "12 pages, 2 scanned".
 export default function FilePicker({ inputRef, fileName, summary, disabled, onFile }) {
   const [dragging, setDragging] = useState(false)
+
+  // A file dropped just outside the drop zone would make the browser open it and leave the
+  // app. Text drags (e.g. into the prompt) are left alone.
+  useEffect(() => {
+    const ignoreFileDrop = (event) => {
+      if (event.dataTransfer?.types.includes('Files')) event.preventDefault()
+    }
+    window.addEventListener('dragover', ignoreFileDrop)
+    window.addEventListener('drop', ignoreFileDrop)
+    return () => {
+      window.removeEventListener('dragover', ignoreFileDrop)
+      window.removeEventListener('drop', ignoreFileDrop)
+    }
+  }, [])
 
   function handleDrop(event) {
     event.preventDefault()

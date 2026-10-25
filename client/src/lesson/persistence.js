@@ -10,7 +10,9 @@ const VERSION = 1
 export function saveLesson(state, storage) {
   try {
     const target = storage ?? globalThis.sessionStorage
-    target.setItem(LESSON_KEY, JSON.stringify({ version: VERSION, state }))
+    // No lesson (after "New lesson"): remove the entry instead of saving null.
+    if (state === null) target.removeItem(LESSON_KEY)
+    else target.setItem(LESSON_KEY, JSON.stringify({ version: VERSION, state }))
     return { ok: true }
   } catch {
     return { ok: false }

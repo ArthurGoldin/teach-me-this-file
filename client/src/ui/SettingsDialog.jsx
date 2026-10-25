@@ -3,23 +3,21 @@ import { clearKey, getKey, isRemembered, setKey } from '../api/keyStore.js'
 
 // API key settings (design §10, §11 screen 4). The key stays in memory, or in sessionStorage
 // when "Remember for this tab" is ticked. It is never shown back, only replaced or removed.
-export default function SettingsDialog({ open, reason, hasServerKey, onClose, onKeyChange }) {
+export default function SettingsDialog({ reason, hasServerKey, onClose, onKeyChange }) {
   const dialogRef = useRef(null)
   const inputRef = useRef(null)
   const [draft, setDraft] = useState('')
   const [remember, setRemember] = useState(isRemembered)
   const hasKey = Boolean(getKey())
 
+  // Mounted only while open (see App), so `remember` and the draft start fresh each time.
   // The native <dialog> gives focus trapping, Escape and the backdrop for free.
   useEffect(() => {
     const dialog = dialogRef.current
-    if (open && !dialog.open) {
-      dialog.showModal()
-      // Start on the key field rather than the close button.
-      inputRef.current.focus()
-    }
-    if (!open && dialog.open) dialog.close()
-  }, [open])
+    if (!dialog.open) dialog.showModal()
+    // Start on the key field rather than the close button.
+    inputRef.current.focus()
+  }, [])
 
   function handleSubmit(event) {
     event.preventDefault()

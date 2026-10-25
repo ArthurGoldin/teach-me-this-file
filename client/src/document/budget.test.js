@@ -63,12 +63,27 @@ describe('checkRange', () => {
   it('counts tokens, scan pages and flags a range that is too big', () => {
     const pages = [...textPages(2, 300), { page: 3, text: '', isScan: true }]
     const result = checkRange(pages, { from: 1, to: 3 })
-    expect(result).toEqual({ tokens: 100 + 100 + SCAN_PAGE_TOKENS, scanPages: 1, ok: true })
+    expect(result).toEqual({
+      tokens: 100 + 100 + SCAN_PAGE_TOKENS,
+      scanPages: 1,
+      inBounds: true,
+      ok: true,
+    })
     expect(checkRange(scanPages(21), { from: 1, to: 21 }).ok).toBe(false)
     expect(checkRange(textPages(200), { from: 1, to: 200 }).ok).toBe(false)
   })
 
-  it('rejects a range with no pages in it', () => {
-    expect(checkRange(textPages(3), { from: 3, to: 2 }).ok).toBe(false)
+  it('rejects a range outside the document or in the wrong order', () => {
+    const pages = textPages(3)
+    for (const range of [
+      { from: 3, to: 2 },
+      { from: 0, to: 2 },
+      { from: 1, to: 4 },
+      { from: 1.5, to: 2 },
+      { from: Number.NaN, to: 2 },
+    ]) {
+      expect(checkRange(pages, range)).toMatchObject({ inBounds: false, ok: false })
+    }
+    expect(checkRange(pages, { from: 1, to: 3 })).toMatchObject({ inBounds: true, ok: true })
   })
 })

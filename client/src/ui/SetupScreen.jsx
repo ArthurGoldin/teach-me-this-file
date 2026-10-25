@@ -6,10 +6,19 @@ import FilePicker from './FilePicker.jsx'
 import RangePicker from './RangePicker.jsx'
 import { messageFor } from './errorMessages.js'
 import { useLessonBuilder } from './useLessonBuilder.js'
+import { useSecondsLeft } from './useSecondsLeft.js'
 
 const EXAMPLE_PROMPT =
   'Teach this to 7th graders, in French. Be Socratic. Keep it under 15 minutes.'
 const MAX_PROMPT = 1000
+const KEY_ERRORS = ['NO_KEY', 'INVALID_KEY']
+
+// What screen readers hear when the stage changes (once per stage, not per page).
+const STAGE_ANNOUNCEMENTS = {
+  reading: 'Reading the file',
+  planning: 'Planning the lesson',
+  'choose-range': 'File read. Choose the part to teach.',
+}
 
 function fileSummary(raw) {
   const unit = raw.kind === 'text' ? 'section' : 'page'
@@ -59,22 +68,25 @@ export default function SetupScreen({ hasKey, onOpenSettings, onLessonReady }) {
   const [prompt, setPrompt] = useState('')
   const fileInputRef = useRef(null)
 
-  // Key problems open the settings dialog with the reason.
+  // Key problems open the settings dialog, which shows the reason (so no inline notice).
   useEffect(() => {
-    if (error?.code === 'NO_KEY' || error?.code === 'INVALID_KEY') {
-      onOpenSettings(messageFor(error.code).text)
-    }
+    if (KEY_ERRORS.includes(error?.code)) onOpenSettings(messageFor(error.code).text)
   }, [error, onOpenSettings])
 
   const busy = stage === 'reading' || stage === 'planning'
+  const waitSeconds = useSecondsLeft(error)
+  const inRange =
+    raw && range ? raw.pages.filter((p) => p.page >= range.from && p.page <= range.to) : []
+  // Temporary until scanned pages are transcribed (Task 12).
+  const scannedInRange = inRange.filter((p) => p.isScan).length
+  const onlyScans = scannedInRange > 0 && scannedInRange === inRange.length
   const rangeOk = raw && range && checkRange(raw.pages, range).ok
-  const scannedInRange =
-    raw && range
-      ? raw.pages.filter((p) => p.isScan && p.page >= range.from && p.page <= range.to)
-      : []
-  const canBuild = rangeOk && hasKey && !busy
-  const fileError = stage === 'error' && !raw
-  const buildError = stage === 'error' && raw
+  const canBuild = rangeOk && !onlyScans && hasKey && !busy && waitSeconds === 0
+  const shownError = stage === 'error' && !KEY_ERRORS.includes(error.code) ? error : null
+  const fileError = shownError && !raw
+  const buildError = shownError && raw
+  let announcement = STAGE_ANNOUNCEMENTS[stage] ?? ''
+  if (stage === 'idle' && raw) announcement = 'File read.'
 
   // Exactly one amber "you are here" stop: the first one that is not done.
   const stopState = (done, current) => (done ? 'done' : current ? 'current' : 'todo')
@@ -87,7 +99,11 @@ export default function SetupScreen({ hasKey, onOpenSettings, onLessonReady }) {
   }
 
   function handleAction(action) {
-    if (action === 'retry') handleBuild()
+    // Retry repeats what failed: reading the file, or building the lesson.
+    if (action === 'retry') {
+      if (raw) handleBuild()
+      else builder.rereadFile()
+    }
     if (action === 'settings') onOpenSettings(null)
     if (action === 'pick-file') fileInputRef.current?.click()
   }
@@ -100,6 +116,10 @@ export default function SetupScreen({ hasKey, onOpenSettings, onLessonReady }) {
       <p className="mt-3 max-w-prose text-lg leading-relaxed text-slate/75">
         Pick the material, say how it should be taught, and a tutor teaches it to your student one
         step at a time, checking understanding as it goes.
+      </p>
+
+      <p aria-live="polite" className="sr-only">
+        {announcement}
       </p>
 
       <ol className="mt-10">
@@ -123,7 +143,7 @@ export default function SetupScreen({ hasKey, onOpenSettings, onLessonReady }) {
                 onCancel={builder.cancel}
               />
             )}
-            {fileError && <ErrorNotice key={error.at} error={error} onAction={handleAction} />}
+            {fileError && <ErrorNotice error={error} onAction={handleAction} />}
             {range?.needsPicker && (
               <RangePicker
                 raw={raw}
@@ -132,10 +152,11 @@ export default function SetupScreen({ hasKey, onOpenSettings, onLessonReady }) {
                 unit={raw.kind === 'text' ? 'section' : 'page'}
               />
             )}
-            {scannedInRange.length > 0 && (
+            {scannedInRange > 0 && (
               <p className="rounded-xl bg-surface px-4 py-3 text-sm leading-relaxed">
-                Scanned pages aren&apos;t supported yet, so the lesson uses only the pages with
-                text.
+                {onlyScans
+                  ? "No pages with text in this range. Scanned pages aren't supported yet."
+                  : "Scanned pages aren't supported yet, so the lesson uses only the pages with text."}
               </p>
             )}
           </div>
@@ -206,7 +227,9 @@ export default function SetupScreen({ hasKey, onOpenSettings, onLessonReady }) {
                 )}
               </div>
             )}
-            {buildError && <ErrorNotice key={error.at} error={error} onAction={handleAction} />}
+            {buildError && (
+              <ErrorNotice error={error} secondsLeft={waitSeconds} onAction={handleAction} />
+            )}
           </div>
         </Stop>
       </ol>

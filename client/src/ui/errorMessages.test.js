@@ -24,6 +24,11 @@ describe('messageFor', () => {
     expect(messageFor('UNSUPPORTED_FILE', { fileType: 'ZIP' }).text).toMatch(/^ZIP files aren't/)
   })
 
+  it('only mentions passwords for a PDF that will not open', () => {
+    expect(messageFor('CORRUPT_FILE', { fileType: 'PDF' }).text).toMatch(/^This PDF.*password/)
+    expect(messageFor('CORRUPT_FILE', { fileType: 'TXT' }).text).not.toMatch(/PDF|password/)
+  })
+
   it('sends key problems to the settings', () => {
     expect(messageFor('NO_KEY').action).toBe('settings')
     expect(messageFor('INVALID_KEY').action).toBe('settings')

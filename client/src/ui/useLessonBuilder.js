@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPlan } from '../api/client.js'
 import { applyRange, defaultRange } from '../document/budget.js'
+import { DocumentError } from '../document/errors.js'
 import { buildLessonDocument } from '../document/lessonDocument.js'
 import { readFile } from '../document/readFile.js'
 
@@ -29,9 +30,25 @@ export function useLessonBuilder() {
   const [range, setRange] = useState(null)
   const [error, setError] = useState(null)
   const controllerRef = useRef(null)
+  // The last picked file, so "Try again" after a read failure can read it again.
+  const lastFileRef = useRef(null)
+  // The open document (a parsed PDF holds memory and a worker until destroyed).
+  const rawRef = useRef(null)
 
-  // Leaving the setup screen cancels whatever is still running.
-  useEffect(() => () => controllerRef.current?.abort(), [])
+  function replaceRaw(doc) {
+    rawRef.current?.destroy()
+    rawRef.current = doc
+    setRaw(doc)
+  }
+
+  // Leaving the setup screen cancels whatever is still running and frees the document.
+  useEffect(
+    () => () => {
+      controllerRef.current?.abort()
+      rawRef.current?.destroy()
+    },
+    [],
+  )
 
   // One task at a time: starting a new one aborts the previous one.
   function startTask() {
@@ -53,21 +70,32 @@ export function useLessonBuilder() {
 
   async function readSelectedFile(file) {
     const signal = startTask()
-    setRaw(null)
+    lastFileRef.current = file
+    replaceRaw(null)
     setRange(null)
     setStage('reading')
     try {
       const doc = await readFile(file, { onProgress: setProgress, signal })
-      if (signal.aborted) return
+      if (signal.aborted) {
+        doc.destroy()
+        return
+      }
       const docRange = defaultRange(doc.pages)
-      setRaw(doc)
+      replaceRaw(doc)
       setRange(docRange)
       setStage(readyStage(doc, docRange))
     } catch (err) {
-      fail(err, signal, { fileType: extensionOf(file.name) })
+      // readFile only throws DocumentErrors; anything else is still a problem with this file,
+      // not with the server.
+      const code = err instanceof DocumentError ? err.code : 'CORRUPT_FILE'
+      fail({ code }, signal, { fileType: extensionOf(file.name) })
     } finally {
       if (!signal.aborted) setProgress(null)
     }
+  }
+
+  function rereadFile() {
+    if (lastFileRef.current) readSelectedFile(lastFileRef.current)
   }
 
   async function build(teacherPrompt) {
@@ -81,11 +109,16 @@ export function useLessonBuilder() {
         { teacherPrompt, document: { name, passages: document.passages } },
         { signal },
       )
+      if (signal.aborted) return null
       if (!result.ok) {
         fail({ code: 'NO_CONTENT' }, signal, { detail: result.reason })
         return null
       }
-      setStage(readyStage(raw, range))
+      // The lesson keeps only text passages, so the parsed file can go now. The setup screen
+      // unmounts next, so `raw` state is left alone (no flash of an empty form).
+      // Task 12: keep this after transcription, which still needs the pages.
+      rawRef.current.destroy()
+      rawRef.current = null
       return { document, plan: result.plan }
     } catch (err) {
       fail(err, signal)
@@ -99,5 +132,16 @@ export function useLessonBuilder() {
     setStage(readyStage(raw, range))
   }
 
-  return { stage, progress, raw, range, setRange, error, readSelectedFile, build, cancel }
+  return {
+    stage,
+    progress,
+    raw,
+    range,
+    setRange,
+    error,
+    readSelectedFile,
+    rereadFile,
+    build,
+    cancel,
+  }
 }

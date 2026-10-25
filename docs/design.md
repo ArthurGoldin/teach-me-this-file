@@ -79,7 +79,7 @@ A teacher uploads a school file and writes a short prompt ("Teach this to 7th gr
 ┌───────────────────────────────▼──── Vercel function (Express) ──────────────┐
 │  http/   routes, apiKey middleware, error mapping, SSE writer, logger       │
 │   │                                                                         │
-│  ai/     prompts (plan, tutor, transcribe) · meta splitter/parser ·         │
+│  ai/     prompts (plan, tutor, grade, transcribe) · meta splitter/parser ·         │
 │          plan validator · gemini.js (ONLY file that imports @google/genai)  │
 └───────────────────────────────┬─────────────────────────────────────────────┘
                                 ▼
@@ -229,7 +229,8 @@ Student sends text (or the app triggers an automatic turn)
   │     (a few KB; never the whole document)
   ├─ server: build prompt → gemini generateContentStream({ abortSignal })
   │     each chunk → meta splitter → `event: delta {text}`   (marker held back, never emitted)
-  │     stream end → parse + validate meta → `event: meta {understanding, passageIds}` (or none)
+  │     stream end → parse + validate meta → `event: meta {understanding, passageIds}`
+  │       block missing/invalid → one `generateJson` grading call (D8) → `event: meta` (or none if it fails)
   │     → `event: done`
   └─ client: TUTOR_DELTA… → TUTOR_FINISHED { meta | null }
         reducer applies the rules (§7.3); if the step advanced → automatic 'introduce' turn
@@ -282,7 +283,7 @@ On `TUTOR_FINISHED` (stream completed normally):
 - `guide` + `understanding: 'yes'` → step `done`, advance, then trigger an automatic `introduce` turn for the next step (or `wrap-up` after the last).
 - `guide` + `'partial' | 'no'` → `misses += 1`; when that makes `misses = 2` (`MAX_MISSES`), the step is `explained` and the app advances (automatic `introduce` or `wrap-up`). That reply was sent with `lastAttempt: true`, so it already explained the answer.
 - `guide` + `'none'` → nothing (off-topic question, "just tell me", greeting).
-- `guide` + meta missing/invalid → nothing; the message shows "No source for this message".
+- `guide` + meta missing/invalid even after the fallback grader → nothing; the message shows "No source for this message".
 - `explain` → step `explained`, advance, automatic `introduce` (or `wrap-up`) — whatever the meta says.
 - `introduce` → nothing beyond storing the message.
 - `wrap-up` → `complete`.
@@ -312,7 +313,7 @@ data: {}
 
 Errors after the stream started: `event: error` + `data: {"code":"RATE_LIMITED","message":"…","retryAfterSeconds":20}`. Errors before the stream starts: normal JSON error response with an HTTP status.
 
-**Meta splitter (server, pure, TDD):** feeds chunks; emits text but always holds back the last `len('<<<META>>>') - 1` characters until it knows they are not the start of the marker; after the marker, buffers the rest as raw meta. On end: returns `{ metaRaw | null }`. Parser: `JSON.parse` (tolerate code fences/whitespace), validate enum, keep only passage IDs that belong to the current step.
+**Meta splitter (server, pure, TDD):** feeds chunks; emits text but always holds back the last `len('<<<META>>>') - 1` characters until it knows they are not the start of the marker; after the marker, buffers the rest as raw meta. On end: returns `{ metaRaw | null }`. Parser: `JSON.parse` (tolerate code fences/whitespace), validate enum, keep only passage IDs that belong to the current step. **Fallback grader:** if the stream ends normally but the block is missing or invalid, `grade.js` builds one structured-output call (step objective, check question, passages, the student's latest message and the reply just sent, with the tutor's own `understanding` definition); its answer goes through the same validation. If it fails or the client has left, the turn ends with no meta.
 
 **Stop:** the Stop button calls `AbortController.abort()` on the fetch. The server listens to `res.on('close')` before the response finished and aborts its own controller, which is passed to the SDK as `config.abortSignal`, so we stop reading from Gemini. Note (SDK docs): aborting is client-side; Google may finish and bill the generation. The message keeps its partial text with state `stopped` and the composer is enabled again. Whether Vercel propagates the client disconnect to Express is verified in the deploy-early task.
 

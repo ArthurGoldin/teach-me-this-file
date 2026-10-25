@@ -1,8 +1,24 @@
-import { createMetaSplitter, parseMeta } from '../ai/meta.js'
+import { createMetaSplitter, parseMeta, validateMeta } from '../ai/meta.js'
+import { buildGradeRequest } from '../ai/prompts/grade.js'
 import { buildTutorRequest, validateTutorInput } from '../ai/prompts/tutor.js'
 import { appError, errorBody, toAppError } from './errors.js'
 import { log } from './logger.js'
 import { openSse } from './sse.js'
+
+// The tutor sometimes leaves out its hidden meta block. One JSON call grades the turn instead
+// (D8); if that fails too, the turn simply has no meta, as before.
+async function gradeTurn(gemini, input, reply, signal, passageIds) {
+  try {
+    const data = await gemini.generateJson({
+      ...buildGradeRequest(input, reply.trim()),
+      signal,
+      invalidCode: 'MODEL_BUSY',
+    })
+    return validateMeta(data, passageIds)
+  } catch {
+    return null
+  }
+}
 
 // POST /api/tutor: one tutor turn, streamed as SSE (design §8). Validation errors happen before
 // the stream opens and go to the JSON error handler; later errors become an `error` event.
@@ -19,6 +35,7 @@ export function createTutorRoute({ createGemini }) {
     })
 
     let code
+    let metaSource = 'none'
     try {
       const gemini = createGemini({ apiKey: res.locals.apiKey })
       const splitter = createMetaSplitter()
@@ -26,7 +43,9 @@ export function createTutorRoute({ createGemini }) {
       // marker (or at the very end) is never sent.
       let heldSpace = ''
       let sentText = false
+      let reply = ''
       const emit = (text) => {
+        reply += text
         const body = text.trimEnd()
         if (body) {
           sse.send('delta', { text: heldSpace + body })
@@ -47,10 +66,17 @@ export function createTutorRoute({ createGemini }) {
       // empty bubble would look like a finished answer, so it is a failed turn the student can
       // retry; MODEL_BUSY is the closest code (a passing problem on Gemini's side).
       if (!sentText) throw appError('MODEL_BUSY')
-      const meta = parseMeta(
-        metaRaw,
-        input.step.passages.map((p) => p.id),
-      )
+      const passageIds = input.step.passages.map((p) => p.id)
+      let meta = parseMeta(metaRaw, passageIds)
+      if (meta) metaSource = 'block'
+      else {
+        meta = await gradeTurn(gemini, input, reply, controller.signal, passageIds)
+        if (meta) metaSource = 'fallback'
+      }
+      if (controller.signal.aborted) {
+        code = 'ABORTED'
+        return
+      }
       if (meta) sse.send('meta', meta)
       sse.send('done', {})
     } catch (err) {
@@ -64,6 +90,7 @@ export function createTutorRoute({ createGemini }) {
         mode: input.mode,
         durationMs: Date.now() - started,
         code,
+        metaSource,
       })
     }
   }

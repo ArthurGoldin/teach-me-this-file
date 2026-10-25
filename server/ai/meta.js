@@ -1,6 +1,6 @@
 export const META_MARKER = '<<<META>>>'
 
-const UNDERSTANDING = ['yes', 'partial', 'no', 'none']
+export const UNDERSTANDING = ['yes', 'partial', 'no', 'none']
 
 // Length of the longest suffix of `text` that is a prefix of the marker.
 function partialMarkerLength(text) {
@@ -54,6 +54,12 @@ export function parseMeta(metaRaw, allowedPassageIds) {
   } catch {
     return null
   }
+  return validateMeta(data, allowedPassageIds)
+}
+
+// Checks a meta object (from the hidden block or the fallback grader, D8). Returns null if it is
+// unusable; passage ids are filtered to the current step's passages.
+export function validateMeta(data, allowedPassageIds) {
   if (!data || !UNDERSTANDING.includes(data.understanding)) return null
   const ids = Array.isArray(data.passageIds) ? data.passageIds : []
   return {

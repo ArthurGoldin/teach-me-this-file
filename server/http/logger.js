@@ -1,6 +1,16 @@
 // The only place the server writes logs. Only allow-listed fields are kept, so request
 // headers, bodies and keys can never reach the output.
-const ALLOWED_FIELDS = ['route', 'status', 'durationMs', 'code', 'pages', 'steps', 'model', 'mode']
+const ALLOWED_FIELDS = [
+  'route',
+  'status',
+  'durationMs',
+  'code',
+  'pages',
+  'steps',
+  'model',
+  'mode',
+  'metaSource',
+]
 
 function write(stream, level, event, fields = {}) {
   const kept = Object.fromEntries(

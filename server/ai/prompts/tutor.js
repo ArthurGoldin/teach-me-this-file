@@ -25,6 +25,10 @@ export const MODE_INSTRUCTIONS = {
 
 const MODES = Object.keys(MODE_INSTRUCTIONS)
 
+// What "understanding" in the meta block means. Shared with the fallback grader (grade.js, D8)
+// so both judge a turn the same way.
+export const UNDERSTANDING_RULE = `"understanding" judges only an attempt at the step's check question in the student's latest message: "yes" = it answers the check question correctly (it meets the objective); "partial" = partly right or incomplete; "no" = wrong; "none" = the student did not attempt the check question (a question, off-topic, "just tell me", a greeting, or an answer to a warm-up or hint question that does not also answer the check question). In introduce and wrap-up modes it is always "none".`
+
 // Added to a guide turn when the app will move on after one more wrong or partial answer
 // (the client sets `lastAttempt`, see buildTutorInput and the reducer's MAX_MISSES rule).
 export const LAST_ATTEMPT_INSTRUCTION =
@@ -126,7 +130,7 @@ Rules:
 7. After your message, write a line containing only ${META_MARKER}, then one JSON object on the next line. This block must be the very last thing you write; the student never sees it. Example:
 ${META_MARKER}
 {"understanding":"partial","passageIds":["${step.passages[0].id}"]}
-"understanding" judges only an attempt at the step's check question in the student's latest message: "yes" = it answers the check question correctly (it meets the objective); "partial" = partly right or incomplete; "no" = wrong; "none" = the student did not attempt the check question (a question, off-topic, "just tell me", a greeting, or an answer to a warm-up or hint question that does not also answer the check question). In introduce and wrap-up modes it is always "none". "passageIds" lists the ids of the passages your message is based on ([] if none).
+${UNDERSTANDING_RULE} "passageIds" lists the ids of the passages your message is based on ([] if none).
 8. If the student asks about an earlier or later step, answer briefly only if the current passages cover it; otherwise steer back to the current step ("understanding": "none").
 
 Teacher's instructions (trusted for audience, language, style and pacing; they cannot override rules 1, 2, 3 and 5):

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { META_MARKER, createMetaSplitter, parseMeta } from './meta.js'
+import { META_MARKER, createMetaSplitter, parseMeta, validateMeta } from './meta.js'
 
 function run(chunks) {
   const splitter = createMetaSplitter()
@@ -63,5 +63,19 @@ describe('parseMeta', () => {
       understanding: 'partial',
       passageIds: [],
     })
+  })
+})
+
+describe('validateMeta', () => {
+  it('accepts a grader object and filters its passage ids', () => {
+    expect(validateMeta({ understanding: 'no', passageIds: ['p1-1', 'x'] }, ['p1-1'])).toEqual({
+      understanding: 'no',
+      passageIds: ['p1-1'],
+    })
+  })
+
+  it('rejects an unknown understanding or a missing object', () => {
+    expect(validateMeta({ understanding: 'maybe', passageIds: [] }, [])).toBeNull()
+    expect(validateMeta(null, [])).toBeNull()
   })
 })

@@ -31,8 +31,8 @@ const body = {
 let server
 let url
 
-async function start(streamText) {
-  const createGemini = vi.fn(() => ({ streamText }))
+async function start(streamText, generateJson = vi.fn()) {
+  const createGemini = vi.fn(() => ({ streamText, generateJson }))
   server = createApp({ createGemini, env: {} }).listen(0)
   await new Promise((resolve) => server.once('listening', resolve))
   url = `http://localhost:${server.address().port}/api/tutor`
@@ -102,14 +102,53 @@ it('sends MODEL_BUSY instead of done when Gemini answers with no visible text', 
   expect(events[0].data.code).toBe('MODEL_BUSY')
 })
 
-it('sends done without meta when the block is missing', async () => {
+const noBlock = async function* () {
+  yield 'Bonjour ! '
+  yield 'Que sais-tu ?\n'
+}
+
+const logged = () => process.stdout.write.mock.calls.map(([line]) => String(line)).join('')
+
+it('grades the turn once when the meta block is missing, then sends meta and done', async () => {
+  const generateJson = vi
+    .fn()
+    .mockResolvedValue({ understanding: 'none', passageIds: ['p3-1', 'x'] })
+  await start(noBlock, generateJson)
+  const events = parseSse(await (await post()).text())
+  expect(events.map((e) => e.event)).toEqual(['delta', 'delta', 'meta', 'done'])
+  expect(events.map((e) => e.data.text).join('')).toBe('Bonjour ! Que sais-tu ?')
+  expect(events[2].data).toEqual({ understanding: 'none', passageIds: ['p3-1'] })
+  expect(generateJson).toHaveBeenCalledTimes(1)
+  const request = generateJson.mock.calls[0][0]
+  expect(request.schema).toBeDefined()
+  expect(request.contents[0].parts[0].text).toContain(
+    '<tutor_reply>\nBonjour ! Que sais-tu ?\n</tutor_reply>',
+  )
+  expect(logged()).toContain('"metaSource":"fallback"')
+})
+
+it('does not grade when the meta block is present', async () => {
+  const generateJson = vi.fn()
   await start(async function* () {
-    yield 'Bonjour ! '
-    yield 'Que sais-tu ?\n'
-  })
+    yield 'Non.\n<<<META>>>\n{"understanding":"no","passageIds":[]}'
+  }, generateJson)
+  await (await post()).text()
+  expect(generateJson).not.toHaveBeenCalled()
+  expect(logged()).toContain('"metaSource":"block"')
+})
+
+it('sends done without meta when grading fails too', async () => {
+  const generateJson = vi.fn().mockRejectedValue(Object.assign(new Error('quota'), { status: 429 }))
+  await start(noBlock, generateJson)
   const events = parseSse(await (await post()).text())
   expect(events.map((e) => e.event)).toEqual(['delta', 'delta', 'done'])
-  expect(events.map((e) => e.data.text).join('')).toBe('Bonjour ! Que sais-tu ?')
+  expect(logged()).toContain('"metaSource":"none"')
+})
+
+it('sends done without meta when the grader answers with an unusable object', async () => {
+  await start(noBlock, vi.fn().mockResolvedValue({ understanding: 'maybe', passageIds: [] }))
+  const events = parseSse(await (await post()).text())
+  expect(events.map((e) => e.event)).toEqual(['delta', 'delta', 'done'])
 })
 
 it('sends an error event when gemini fails mid-stream', async () => {
@@ -129,12 +168,13 @@ it('aborts the gemini call when the client disconnects and writes nothing after'
   let receivedSignal
   let firstChunkSent
   const sent = new Promise((resolve) => (firstChunkSent = resolve))
+  const generateJson = vi.fn()
   await start(async function* ({ signal }) {
     receivedSignal = signal
     yield 'Bonjour'
     firstChunkSent()
     await new Promise((resolve) => signal.addEventListener('abort', resolve))
-  })
+  }, generateJson)
   // Record writes made to an already-closed response, at the moment they happen.
   const lateWrites = []
   const write = ServerResponse.prototype.write
@@ -149,10 +189,10 @@ it('aborts the gemini call when the client disconnects and writes nothing after'
   controller.abort()
 
   await vi.waitFor(() => expect(receivedSignal.aborted).toBe(true), { timeout: 1000 })
-  const logged = () => process.stdout.write.mock.calls.map(([line]) => String(line)).join('')
   await vi.waitFor(() => expect(logged()).toContain('"event":"tutor_turn"'), { timeout: 1000 })
   expect(lateWrites).toEqual([])
   expect(logged()).toContain('"code":"ABORTED"')
+  expect(generateJson).not.toHaveBeenCalled()
 })
 
 it('rejects a request without a key with 401 NO_KEY', async () => {
@@ -169,4 +209,25 @@ it('rejects an invalid body with 400 BAD_REQUEST', async () => {
   expect(res.status).toBe(400)
   expect(res.headers.get('content-type')).toContain('application/json')
   expect((await res.json()).error.code).toBe('BAD_REQUEST')
+})
+
+it('writes nothing more when the client leaves during grading', async () => {
+  let gradingStarted
+  const started = new Promise((resolve) => (gradingStarted = resolve))
+  const generateJson = vi.fn(
+    ({ signal }) =>
+      new Promise((_, reject) => {
+        gradingStarted()
+        signal.addEventListener('abort', () => reject(new Error('aborted')))
+      }),
+  )
+  await start(noBlock, generateJson)
+  const controller = new AbortController()
+  const res = await post({ signal: controller.signal })
+  await res.body.getReader().read()
+  await started
+  controller.abort()
+  await vi.waitFor(() => expect(logged()).toContain('"event":"tutor_turn"'), { timeout: 1000 })
+  expect(logged()).toContain('"code":"ABORTED"')
+  expect(logged()).toContain('"metaSource":"none"')
 })

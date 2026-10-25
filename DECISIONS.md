@@ -114,6 +114,13 @@ A running log of the choices behind "Teach Me This File": what I chose, what I r
 - **Details:** pdf.js (~430 kB) is loaded with a dynamic `import()` only when a PDF is picked, so the first screen stays small. An empty text file is reported as `NO_CONTENT` as soon as it is read, not after pressing Build. The file is read in the browser with a page-by-page progress line and Cancel (an `AbortController` stops reading and the plan request). PDF pages are rendered for transcription so their long side is exactly 1,600 px (vector pages can be scaled up for sharper text); photos are only scaled down.
 - **Temporary limit:** scanned pages and images are not transcribed yet. The setup screen says "Scanned pages aren't supported yet" and builds from the text pages only (scan pages are recorded as skipped); a range with only scanned pages says so up front and disables Build lesson.
 
+### D18. Lesson screen: the app runs the turns, the chat only shows them
+
+- **Chose:** one hook (`client/src/ui/useTutor.js`) turns the stream into reducer actions; it owns the only `AbortController`, so at most one turn is in flight, Stop aborts it and leaving the lesson aborts it. Automatic turns (introduce a step, wrap up) start when the reducer sets `pendingAuto`, from a zero-delay timer that the effect cleanup cancels, so React StrictMode's double mount starts them once. A student turn is built from the state _after_ `studentSent` (the reducer is called directly on the current state), so the request always ends with the new message. Header: title, the route (one stop per step, amber "you are here", mirrored in Hebrew/Arabic lessons), "Step 2 of 5", "~4 / 15 min", and a menu with "What's included" and New lesson (with confirmation). The source panel is a bottom sheet on phones (native `<dialog>`: focus trap, Escape) and a side panel from `md` up, so the student can keep answering while reading the source.
+- **Rejected:** keeping turn logic in the components; a "Next step" button instead of automatic introductions; a modal source panel on desktop.
+- **Why:** the reducer decides, the hook does I/O, the components render: each part can be explained and changed alone.
+- **Details:** the lesson is not saved to sessionStorage while a turn streams (it would rewrite the whole lesson on every chunk); it is saved when the turn ends, and a reload mid-stream restores the turn as stopped. A stopped introduction or wrap-up offers "Continue the lesson" (otherwise the student has no question, and a stopped wrap-up could never end the lesson). Only the latest failed turn offers its fix (Retry with the rate-limit countdown, or Open settings). The composer blocks a message with a line starting with `[app]` and says why, because the server rejects it (D15). A tutor message whose turn sent no valid citation says "No source for this message" instead of showing a chip. Lesson text sets its own direction (`dir="auto"`), formulas are always left to right.
+
 ## What I decided not to do (and why)
 
 - Shareable links / multi-device lessons (D1).
@@ -128,6 +135,8 @@ A running log of the choices behind "Teach Me This File": what I chose, what I r
 - Stop ends our stream and our request to Gemini, but the SDK documents abort as client-side only: Google may still finish (and bill) the generation.
 - Formulas in PDFs that have a text layer come out as flat text (only scanned pages get LaTeX transcription).
 - The tutor's hidden JSON block depends on the model following instructions; when it does not, that turn has no citation and no progress.
+- The main bundle is about 700 kB (about 215 kB gzipped), mostly React, react-markdown and KaTeX; Vite warns about it. Loading the lesson screen lazily would split it, at the cost of another chunk that can fail to load.
+- The tutor sometimes asks the next step's question in the same message where it confirms a correct answer, and then the automatic introduction asks it again.
 - Rate limits of the reviewer's free key can interrupt a lesson (shown clearly, with retry).
 - The plan model (`gemini-3.5-flash-lite`) still sometimes puts two concepts in one step, more often in French than in English (for example "L'évaporation et la transpiration"), even after two prompt iterations. Each step still has one check question, and the tutor teaches from that step's passages, so the lesson stays usable.
 
@@ -146,6 +155,9 @@ Runtime
 - `react`, `react-dom`: the UI library required by the brief.
 - `express`: the Node HTTP layer; the same app runs in dev and on Vercel (D6, D14).
 - `@google/genai`: Google's official Gemini SDK; streaming, JSON-schema output and abort support without hand-rolled REST.
+- `react-markdown`: renders the tutor's Markdown (lists, bold, tables) as React elements without `dangerouslySetInnerHTML`; raw HTML is ignored, so no XSS from model or file text.
+- `remark-gfm`: GitHub-flavoured Markdown, needed for tables in school material.
+- `remark-math`, `rehype-katex`, `katex`: `$…$` formulas rendered as real math (transcribed scans are LaTeX, and the tutor writes formulas the same way). They make up most of the main bundle size; see Known weaknesses.
 - `pdfjs-dist`: Mozilla's PDF.js, the standard way to read a PDF's text layer and render pages in the browser; runs its parser in a Web Worker.
 
 Build and test
@@ -175,4 +187,5 @@ Custom lint rules
 - `no-restricted-properties` on `describe|it|test` `.only|.skip` in tests: a focused or skipped test must not be committed (done with core ESLint instead of `eslint-plugin-vitest`, to avoid a dependency).
 - One inline disable: `react-hooks/set-state-in-effect` in `App.jsx`, where the result of saving the lesson to sessionStorage is only known after the write, so it is stored in an effect (one extra render per lesson change).
 - `no-unused-vars` in `client/` ignores names starting with a capital letter: core ESLint does not count `<Component />` as a use of the import (same setting as the Vite template).
+- `no-unused-vars` in `client/` also has `ignoreRestSiblings`: `const { node, ...props } = x` is the plain way to leave a prop out of a spread (used in `Markdown.jsx` so react-markdown's syntax-tree prop never reaches the DOM).
 - `no-console` is an error in `client/` and a warning in `server/`; server logging goes through one small logger (added later).

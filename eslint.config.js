@@ -61,7 +61,8 @@ export default [
     rules: {
       'no-console': 'error',
       // Core ESLint does not see <Component /> as a use of the import (same as the Vite template).
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      // ignoreRestSiblings: `const { node, ...props } = x` is how a prop is left out of a spread.
+      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]', ignoreRestSiblings: true }],
     },
   },
   { files: clientFiles, ...reactHooks.configs.flat.recommended },

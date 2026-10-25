@@ -1,33 +1,93 @@
-// Placeholder until the chat lands (Task 11): shows the plan that was built.
-export default function LessonScreen({ lesson, onNewLesson }) {
-  const { plan, document } = lesson
+import { useCallback, useState } from 'react'
+import { isStreaming, passagesFor } from '../lesson/selectors.js'
+import Composer from './Composer.jsx'
+import LessonHeader from './LessonHeader.jsx'
+import MessageList from './MessageList.jsx'
+import SourcePanel from './SourcePanel.jsx'
+import { textDirection } from './lessonFormat.js'
+import { useTutor } from './useTutor.js'
+
+function LessonComplete({ onRestart, onNewLesson }) {
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 pt-8 pb-16 sm:px-6 sm:pt-12">
-      <p className="text-sm text-slate/70" dir="auto">
-        {document.name}
-      </p>
-      <h1 dir="auto" className="mt-1 text-3xl leading-tight font-semibold">
-        {plan.title}
-      </h1>
-      <ol className="mt-8 flex flex-col gap-3">
-        {plan.steps.map((step, i) => (
-          <li key={step.id} className="flex gap-3 rounded-xl bg-surface p-4">
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-teal text-sm font-semibold text-white">
-              {i + 1}
-            </span>
-            <span dir="auto" className="min-w-0 flex-1 pt-0.5">
-              {step.title}
-            </span>
-          </li>
-        ))}
-      </ol>
-      <button
-        type="button"
-        onClick={onNewLesson}
-        className="mt-8 rounded-xl border border-teal px-5 py-2.5 font-medium text-teal hover:bg-teal hover:text-white"
-      >
-        New lesson
-      </button>
-    </main>
+    <div className="mx-auto w-full max-w-2xl px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6">
+      <div className="flex flex-col gap-3 rounded-2xl bg-surface p-4 sm:flex-row sm:items-center sm:justify-between">
+        <p className="flex items-center gap-2 font-semibold">
+          <span aria-hidden="true" className="size-2.5 rounded-full bg-amber" />
+          Lesson complete
+        </p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onRestart}
+            className="rounded-xl border border-teal px-4 py-2 font-medium text-teal hover:bg-teal hover:text-white"
+          >
+            Restart lesson
+          </button>
+          <button
+            type="button"
+            onClick={onNewLesson}
+            className="rounded-xl bg-teal px-4 py-2 font-medium text-white hover:bg-teal/90"
+          >
+            New lesson
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// The lesson: route header, chat, composer, and the source of any tutor message.
+// The whole screen follows the lesson language's direction, so a Hebrew lesson mirrors.
+export default function LessonScreen({ lesson, dispatch, onOpenSettings }) {
+  const tutor = useTutor(lesson, dispatch)
+  const [sourceId, setSourceId] = useState(null)
+  const closeSource = useCallback(() => setSourceId(null), [])
+
+  const { progress, messages } = lesson
+  const streaming = isStreaming(lesson)
+  const complete = progress.status === 'complete'
+  const sourceMessage = messages.find(({ id }) => id === sourceId)
+  const sourcePassages = sourceMessage ? passagesFor(lesson, sourceMessage.passageIds ?? []) : []
+
+  const newLesson = () => dispatch({ type: 'lessonCleared' })
+
+  return (
+    <div dir={textDirection(lesson.plan.brief?.language)} className="flex min-h-0 flex-1">
+      <main className="flex min-w-0 flex-1 flex-col">
+        <div className="shrink-0 border-b border-surface">
+          <LessonHeader lesson={lesson} onNewLesson={newLesson} />
+        </div>
+        <MessageList
+          lesson={lesson}
+          sourceId={sourceId}
+          onShowSource={(id) => setSourceId(id === sourceId ? null : id)}
+          onRetry={tutor.retry}
+          onOpenSettings={() => onOpenSettings(null)}
+        />
+        <div className="shrink-0 border-t border-surface">
+          {complete ? (
+            <LessonComplete
+              onRestart={() => {
+                setSourceId(null)
+                dispatch({ type: 'lessonRestarted', now: Date.now() })
+              }}
+              onNewLesson={newLesson}
+            />
+          ) : (
+            <Composer
+              streaming={streaming}
+              disabled={
+                streaming || progress.pendingAuto !== null || progress.status !== 'teaching'
+              }
+              onSend={tutor.send}
+              onStop={tutor.stop}
+            />
+          )}
+        </div>
+      </main>
+      {sourcePassages.length > 0 && (
+        <SourcePanel passages={sourcePassages} kind={lesson.document.kind} onClose={closeSource} />
+      )}
+    </div>
   )
 }

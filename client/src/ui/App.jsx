@@ -3,6 +3,7 @@ import { getConfig } from '../api/client.js'
 import { getKey } from '../api/keyStore.js'
 import { loadLesson, saveLesson } from '../lesson/persistence.js'
 import { lessonReducer } from '../lesson/reducer.js'
+import { isStreaming } from '../lesson/selectors.js'
 import LessonScreen from './LessonScreen.jsx'
 import SettingsDialog from './SettingsDialog.jsx'
 import SetupScreen from './SetupScreen.jsx'
@@ -25,12 +26,16 @@ export default function App() {
   const [settings, setSettings] = useState(null)
 
   // Keep the lesson across a reload. A failed save is reported, never silent (design §9).
+  // Not while a turn streams: that would rewrite the whole lesson on every delta. The save
+  // after the turn ends covers it, and a reload mid-stream restores the turn as stopped.
+  const skipSave = lesson !== null && isStreaming(lesson)
   useEffect(() => {
+    if (skipSave) return
     // The outcome of the write is only known after it happens, so it has to be stored here;
     // it costs one extra render per lesson change.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSaved(saveLesson(lesson).ok)
-  }, [lesson])
+  }, [lesson, skipSave])
 
   // Does the host have its own key? If not and the user has none, ask for one right away.
   useEffect(() => {
@@ -57,8 +62,9 @@ export default function App() {
   const keyLabel = hasUserKey ? 'Key set' : hasServerKey ? 'Server key' : 'Add API key'
 
   return (
-    <div className="flex min-h-dvh flex-col">
-      <header className="border-b border-surface">
+    // The lesson fills the screen exactly (its chat scrolls inside); setup scrolls the page.
+    <div className={`flex flex-col ${lesson ? 'h-dvh' : 'min-h-dvh'}`}>
+      <header className="shrink-0 border-b border-surface">
         <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <span className="flex items-center gap-2 font-semibold text-teal">
             <span aria-hidden="true" className="size-2.5 rounded-full bg-amber" />
@@ -87,7 +93,7 @@ export default function App() {
       )}
 
       {lesson ? (
-        <LessonScreen lesson={lesson} onNewLesson={() => dispatch({ type: 'lessonCleared' })} />
+        <LessonScreen lesson={lesson} dispatch={dispatch} onOpenSettings={openSettings} />
       ) : (
         <SetupScreen
           hasKey={hasKey}

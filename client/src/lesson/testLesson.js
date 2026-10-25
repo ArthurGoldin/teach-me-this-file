@@ -18,6 +18,7 @@ const step = (n, passageIds) => ({
   id: `s${n}`,
   title: `Step ${n}`,
   objective: `Objective ${n}`,
+  keyPoints: [`Point ${n}a.`, `Point ${n}b.`],
   checkQuestion: `Question ${n}?`,
   passageIds,
 })

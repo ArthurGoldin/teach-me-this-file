@@ -7,7 +7,12 @@ const passages = [
 ]
 const body = { teacherPrompt: 'Teach this in French.', document: { name: 'w.txt', passages } }
 
-const step = { title: 'Évaporation', objective: 'Expliquer', checkQuestion: 'Pourquoi ?' }
+const step = {
+  title: 'Évaporation',
+  objective: 'Expliquer',
+  keyPoints: ['Le soleil chauffe la mer.', "L'air chaud monte."],
+  checkQuestion: 'Pourquoi ?',
+}
 const validResponse = {
   ok: true,
   plan: {

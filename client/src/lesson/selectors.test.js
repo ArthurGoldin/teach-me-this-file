@@ -114,6 +114,7 @@ describe('lesson selectors', () => {
       step: {
         title: 'Step 1',
         objective: 'Objective 1',
+        keyPoints: ['Point 1a.', 'Point 1b.'],
         checkQuestion: 'Question 1?',
         passages: testDocument.passages.slice(0, 2),
       },

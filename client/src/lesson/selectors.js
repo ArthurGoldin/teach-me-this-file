@@ -71,6 +71,7 @@ export function buildTutorInput(state, mode, now) {
     step: {
       title: step.title,
       objective: step.objective,
+      keyPoints: step.keyPoints,
       checkQuestion: step.checkQuestion,
       passages: passagesFor(state, step.passageIds),
     },

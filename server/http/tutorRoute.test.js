@@ -17,6 +17,7 @@ const body = {
   step: {
     title: 'La condensation',
     objective: 'Explain condensation',
+    keyPoints: ['La vapeur refroidit.', 'Elle devient des gouttes.'],
     checkQuestion: 'Pourquoi ?',
     passages: [{ id: 'p3-1', page: 3, text: 'Cold air condenses vapour.', origin: 'text' }],
   },

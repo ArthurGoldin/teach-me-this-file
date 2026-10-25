@@ -5,7 +5,7 @@ import { MAX_MISSES } from './selectors.js'
 
 /**
  * @typedef {{ id: string, page: number, text: string, origin: 'text' | 'transcription' }} Passage
- * @typedef {{ id: string, title: string, objective: string, checkQuestion: string, passageIds: string[] }} Step
+ * @typedef {{ id: string, title: string, objective: string, keyPoints: string[], checkQuestion: string, passageIds: string[] }} Step
  * @typedef {{ title: string, brief: object, steps: Step[] }} LessonPlan
  * @typedef {{ status: 'done' | 'explained' | 'current' | 'todo', misses: number, turns: number }} StepProgress
  * @typedef {{

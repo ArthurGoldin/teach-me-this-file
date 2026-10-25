@@ -12,6 +12,11 @@
   "step": {
     "title": "Evaporation",
     "objective": "Explain how heat from the sun turns liquid water into water vapor.",
+    "keyPoints": [
+      "The sun warms oceans, lakes and rivers.",
+      "As water heats up, some of it turns into an invisible gas called water vapor: this is evaporation.",
+      "Warm air carries the water vapor upward."
+    ],
     "checkQuestion": "Why does a wet T-shirt dry faster on a sunny day than on a cloudy day?",
     "passages": [
       {
@@ -33,7 +38,10 @@
       "title": "Evaporation",
       "objective": "Explain how heat from the sun turns liquid water into water vapor."
     },
-    { "title": "Condensation", "objective": "Describe how rising vapor cools and forms clouds." },
+    {
+      "title": "Condensation",
+      "objective": "Describe how rising vapor cools and forms clouds."
+    },
     {
       "title": "Precipitation",
       "objective": "Name the ways water returns to the ground and how the cycle repeats."

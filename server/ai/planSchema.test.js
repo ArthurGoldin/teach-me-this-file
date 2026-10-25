@@ -8,6 +8,7 @@ function makeStep(overrides = {}) {
   return {
     title: "L'évaporation",
     objective: "Expliquer comment le soleil transforme l'eau en vapeur",
+    keyPoints: ["Le soleil chauffe l'eau.", "L'eau chaude devient de la vapeur."],
     checkQuestion: "Qu'est-ce qui fait monter l'eau dans l'air ?",
     passageIds: ['p1-1'],
     ...overrides,
@@ -101,6 +102,7 @@ describe('validatePlan', () => {
         title: '  Évaporation \n',
         objective: ' Expliquer ',
         checkQuestion: ' Pourquoi ? ',
+        keyPoints: [' Un ', 'Deux \n'],
       }),
       makeStep(),
       makeStep(),
@@ -122,6 +124,7 @@ describe('validatePlan', () => {
       title: 'Évaporation',
       objective: 'Expliquer',
       checkQuestion: 'Pourquoi ?',
+      keyPoints: ['Un', 'Deux'],
     })
   })
 
@@ -177,6 +180,30 @@ describe('validatePlan', () => {
     [
       'a check question over 500 chars',
       makeResponse({ steps: [makeStep(), makeStep(), makeStep({ checkQuestion: long })] }),
+    ],
+    [
+      'a step without key points',
+      makeResponse({ steps: [makeStep(), makeStep(), makeStep({ keyPoints: undefined })] }),
+    ],
+    [
+      'a step with one key point',
+      makeResponse({ steps: [makeStep(), makeStep(), makeStep({ keyPoints: ['a'] })] }),
+    ],
+    [
+      'a step with five key points',
+      makeResponse({
+        steps: [makeStep(), makeStep(), makeStep({ keyPoints: Array(5).fill('a') })],
+      }),
+    ],
+    [
+      'a blank key point',
+      makeResponse({ steps: [makeStep(), makeStep(), makeStep({ keyPoints: ['a', ' '] })] }),
+    ],
+    [
+      'a key point over 200 chars',
+      makeResponse({
+        steps: [makeStep(), makeStep(), makeStep({ keyPoints: ['a', 'b'.repeat(201)] })],
+      }),
     ],
     ['a missing language', makeResponse({ brief: { language: undefined } })],
     ['a language that is not a BCP-47 tag', makeResponse({ brief: { language: 'French please' } })],

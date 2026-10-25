@@ -150,7 +150,8 @@ Step = {
   id: 's3',
   title: 'La condensation',
   objective: 'Explain why water vapour turns into droplets when it cools',
-  checkQuestion: '…',        // the question that tests the objective
+  keyPoints: ['…', '…'],     // 2–4 statements (≤ 200 chars) the tutor must teach in this step (D22)
+  checkQuestion: '…',        // tests the objective; answerable by reasoning from keyPoints only
   passageIds: ['p3-1', 'p3-2'],   // ≥ 1, all must exist in LessonDocument.passages
 }
 
@@ -224,7 +225,7 @@ Student sends text (or the app triggers an automatic turn)
   ├─ reducer: STUDENT_SENT; selector nextTurnMode(state) → 'introduce' | 'guide' | 'explain' | 'wrap-up'
   ├─ POST /api/tutor   (Accept: text/event-stream, header X-Gemini-Key)
   │     body: { brief, teacherPrompt, lessonTitle, stepNumber, stepCount,
-  │             step: { title, objective, checkQuestion, passages: Passage[] },
+  │             step: { title, objective, keyPoints, checkQuestion, passages: Passage[] },
   │             mode, misses, lastAttempt, elapsedMinutes, history: last 12 messages (role + text) }
   │     (a few KB; never the whole document)
   ├─ server: build prompt → gemini generateContentStream({ abortSignal })
@@ -244,7 +245,7 @@ Input: teacher prompt + passages in range. Output (JSON schema): `{ ok, reason?,
 
 - Brief extracted from the teacher prompt; defaults: language of the teacher prompt, general audience, guided teaching (explain, then ask), 15 minutes.
 - Steps sized to duration: ≈ 2–2.5 min per step → `clamp(round(duration / 2.5), 3, 8)`; the prompt states the target count.
-- Each step teaches one idea, cites the passages it is built from, and has one check question answerable from those passages and from what the tutor teaches in that step (the student never reads the file, D22). It asks the student to apply or explain the idea in a new situation (predict, compare, give an example, explain why), not to repeat a taught fact.
+- Each step teaches one idea, cites the passages it is built from, lists 2–4 key points (the facts the tutor must teach, from those passages) and has one check question answerable by reasoning from the key points only (the student never reads the file, D22). It asks the student to apply or explain the idea in a new situation (predict, compare, give an example, explain why), not to repeat a taught fact.
 - If the content is not teachable (empty, random characters, a shopping receipt with nothing to learn) → `ok: false` with a reason shown to the teacher.
 - If the teacher prompt targets a part of the file ("only chapter 2"), the plan only uses those passages.
 
@@ -252,7 +253,7 @@ Input: teacher prompt + passages in range. Output (JSON schema): `{ ok, reason?,
 
 System instruction (fixed rules, in English; the tutor answers in `brief.language`). It opens by stating that the student has not read the document and knows only what the tutor teaches, so the tutor explains first and then checks understanding (D22).
 
-1. You are a tutor following the teacher's brief. Teach the current step only; each message teaches one small piece (explain, then ask) and ends with exactly one question. A question may only ask about what was taught in the conversation or what the student can reason out from it.
+1. You are a tutor following the teacher's brief. Teach the current step only: explain its key points, then ask; end with exactly one question. Never ask about a fact, term or idea not yet taught in the conversation; before asking, check that everything the question needs has been said, and teach it first if not (hint and follow-up questions too).
 2. Ground everything in the step's passages. You may use general knowledge to _explain_ a passage, never to add new facts. If the student asks something the passages don't cover, say the file doesn't cover it and steer back.
 3. Never give the answer to the check question before the student has tried. On a wrong or partial answer: say what is right, re-explain with a different example or from a new angle but leave out the exact fact the check question asks for, give one hint as a statement, re-ask the check question. Never write the sentence that answers it.
 4. "Just tell me / summarise everything": acknowledge, keep one step at a time (no whole-document summary), explain the current small idea clearly but leave the check answer to the student, then ask one easy question that lets them supply it.
@@ -267,7 +268,7 @@ Per-turn mode (chosen by the app, stated in the prompt):
 
 | Mode        | When                             | Tutor is told to                                                                                                                                                                                                                                                                                                                                                                                    |
 | ----------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `introduce` | First turn of a step (automatic) | Greet (step 1 only), connect to the previous step, teach the key idea in 2–4 sentences from the passages with one example or analogy, then ask the check question in its own words                                                                                                                                                                                                                  |
+| `introduce` | First turn of a step (automatic) | Greet (step 1 only), connect to the previous step, teach every key point plainly with one example or analogy (60–140 words), only then ask the check question in its own words                                                                                                                                                                                                                      |
 | `guide`     | Normal reply                     | Evaluate the answer: right → confirm in 1–2 sentences, no new question, no preview of the next step (the app starts it); wrong/partial → re-explain from a new angle but leave out the fact the check question asks for, one hint as a statement, ask the check question again. With `lastAttempt` (`misses = 1`): a wrong/partial answer gets the worked explanation and "we move on", no question |
 | `explain`   | `turns ≥ 4` on this step         | Explain the answer with a worked example from the passages, ask no question, say we move on                                                                                                                                                                                                                                                                                                         |
 | `wrap-up`   | After the last step              | Recap the key ideas of the lesson in 3–5 points, congratulate, no new question                                                                                                                                                                                                                                                                                                                      |

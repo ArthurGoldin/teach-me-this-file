@@ -44,10 +44,19 @@ describe('lesson persistence', () => {
     expect(loadLesson(storage).messages[0]).toMatchObject({ text: 'Half', state: 'stopped' })
   })
 
+  it('ignores a version-1 save, whose plan steps have no key points', () => {
+    const storage = fakeStorage()
+    const state = newLesson()
+    const steps = state.plan.steps.map(({ keyPoints, ...step }) => step)
+    const old = { ...state, plan: { ...state.plan, steps } }
+    storage.setItem(LESSON_KEY, JSON.stringify({ version: 1, state: old }))
+    expect(loadLesson(storage)).toBeNull()
+  })
+
   it('returns null for nothing saved, a wrong version or bad JSON', () => {
     const storage = fakeStorage()
     expect(loadLesson(storage)).toBeNull()
-    storage.setItem(LESSON_KEY, JSON.stringify({ version: 2, state: newLesson() }))
+    storage.setItem(LESSON_KEY, JSON.stringify({ version: 3, state: newLesson() }))
     expect(loadLesson(storage)).toBeNull()
     storage.setItem(LESSON_KEY, '{not json')
     expect(loadLesson(storage)).toBeNull()

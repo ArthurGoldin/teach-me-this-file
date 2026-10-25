@@ -14,6 +14,16 @@ export const isPlanText = (value) =>
 export const isOptionalPlanText = (value) =>
   value === undefined || (typeof value === 'string' && value.length <= MAX_PLAN_TEXT)
 
+// Key points: what the tutor must teach in a step before it asks the check question (D22).
+const MIN_KEY_POINTS = 2
+const MAX_KEY_POINTS = 4
+const MAX_KEY_POINT = 200
+export const isKeyPoints = (value) =>
+  Array.isArray(value) &&
+  value.length >= MIN_KEY_POINTS &&
+  value.length <= MAX_KEY_POINTS &&
+  value.every((point) => isPlanText(point) && point.trim().length <= MAX_KEY_POINT)
+
 const text = { type: 'string' }
 
 // JSON schema for Gemini structured output (design §5 LessonPlan, without step ids).
@@ -46,10 +56,16 @@ export const PLAN_RESPONSE_SCHEMA = {
             properties: {
               title: text,
               objective: text,
+              keyPoints: {
+                type: 'array',
+                minItems: MIN_KEY_POINTS,
+                maxItems: MAX_KEY_POINTS,
+                items: text,
+              },
               checkQuestion: text,
               passageIds: { type: 'array', minItems: 1, items: text },
             },
-            required: ['title', 'objective', 'checkQuestion', 'passageIds'],
+            required: ['title', 'objective', 'keyPoints', 'checkQuestion', 'passageIds'],
           },
         },
       },
@@ -65,6 +81,7 @@ function isValidStep(step, passageIds) {
   return (
     isObject(step) &&
     [step.title, step.objective, step.checkQuestion].every(isPlanText) &&
+    isKeyPoints(step.keyPoints) &&
     Array.isArray(step.passageIds) &&
     step.passageIds.length > 0 &&
     step.passageIds.every((id) => passageIds.has(id))
@@ -122,6 +139,7 @@ export function validatePlan(response, passageIds) {
         id: `s${i + 1}`,
         title: trim(step.title),
         objective: trim(step.objective),
+        keyPoints: step.keyPoints.map(trim),
         checkQuestion: trim(step.checkQuestion),
         passageIds: [...new Set(step.passageIds)],
       })),

@@ -3,7 +3,8 @@
 
 export const LESSON_KEY = 'tmtf.lesson'
 // Bump when the LessonState shape changes: older saves are then ignored.
-const VERSION = 1
+// 2: plan steps have keyPoints (D22); a version-1 lesson cannot be continued.
+const VERSION = 2
 
 // `storage` is injectable for tests. Reading the global inside `try` because merely accessing
 // sessionStorage throws when the browser blocks site data.

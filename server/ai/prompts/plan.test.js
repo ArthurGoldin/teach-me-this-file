@@ -94,30 +94,28 @@ describe('buildPlanRequest', () => {
     expect(systemInstruction).toContain('connects the ideas')
   })
 
-  it('asks for check questions the tutor can teach, because the student never reads the file', () => {
+  it('asks for 2 to 4 key points per step: all the student will know, since they never read the file', () => {
     const { systemInstruction } = buildPlanRequest(makeInput())
     expect(systemInstruction).toContain(
-      'The student will not read the document; the tutor teaches it, so check questions must be answerable from what the tutor teaches in that step',
+      '"keyPoints": 2 to 4 short statements (each under 200 characters) of the facts and ideas the tutor must teach in this step',
     )
+    expect(systemInstruction).toContain('the key points are everything the student will know')
   })
 
-  it('asks for check questions that apply the idea, with a good and a bad example', () => {
+  it('asks for check questions answerable from the key points only, applying the idea', () => {
     const { systemInstruction } = buildPlanRequest(makeInput())
     expect(systemInstruction).toContain(
-      'apply or explain the idea in their own words in a new situation (predict, compare, give an example, explain why)',
+      "can be answered by reasoning from the step's key points only",
     )
     expect(systemInstruction).toContain(
-      'never to repeat a fact or sentence the tutor has just taught',
+      'apply or explain the idea in their own words in a new situation (predict, compare, give an example, explain why), never to repeat a key point',
+    )
+    expect(systemInstruction).toContain(
+      'It may not use any fact or term that is not in the key points or in everyday knowledge.',
     )
     expect(systemInstruction).toContain(
       'good: "Why is eating 2/4 of a pizza the same as eating 1/2 of it?"; bad: "What are equivalent fractions?"',
     )
-  })
-
-  it('asks for check questions the student can reason out from the passages', () => {
-    const { systemInstruction } = buildPlanRequest(makeInput())
-    expect(systemInstruction).toContain("can be reasoned out from the step's passages alone")
-    expect(systemInstruction).not.toContain('can be answered from the step')
   })
 
   it('defaults the style to guided teaching', () => {

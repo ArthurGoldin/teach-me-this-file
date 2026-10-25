@@ -41,5 +41,6 @@ export function checkRange(pages, range) {
   const selected = inRangeOf(pages, range)
   const tokens = selected.reduce((sum, p) => sum + pageTokens(p), 0)
   const scanPages = selected.filter((p) => p.isScan).length
-  return { tokens, scanPages, ok: tokens <= PLAN_TOKEN_BUDGET && scanPages <= MAX_SCAN_PAGES }
+  const ok = selected.length > 0 && tokens <= PLAN_TOKEN_BUDGET && scanPages <= MAX_SCAN_PAGES
+  return { tokens, scanPages, ok }
 }

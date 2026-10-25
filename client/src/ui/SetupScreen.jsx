@@ -1,0 +1,215 @@
+import { useEffect, useRef, useState } from 'react'
+import { checkRange } from '../document/budget.js'
+import BuildProgress from './BuildProgress.jsx'
+import ErrorNotice from './ErrorNotice.jsx'
+import FilePicker from './FilePicker.jsx'
+import RangePicker from './RangePicker.jsx'
+import { messageFor } from './errorMessages.js'
+import { useLessonBuilder } from './useLessonBuilder.js'
+
+const EXAMPLE_PROMPT =
+  'Teach this to 7th graders, in French. Be Socratic. Keep it under 15 minutes.'
+const MAX_PROMPT = 1000
+
+function fileSummary(raw) {
+  const unit = raw.kind === 'text' ? 'section' : 'page'
+  const count = `${raw.pageCount} ${unit}${raw.pageCount === 1 ? '' : 's'}`
+  if (raw.kind === 'image') return 'Image'
+  const scanned = raw.pages.filter((p) => p.isScan).length
+  return scanned > 0 ? `${count}, ${scanned} scanned` : count
+}
+
+// One stop on the setup route. `state` colours the marker: done (teal), current (amber, "you
+// are here"), todo (pale). The line to the next stop is drawn unless it is the last one.
+function Stop({ number, title, state, last, children }) {
+  const marker = {
+    done: 'border-teal bg-teal text-white',
+    current: 'border-amber bg-amber text-slate',
+    todo: 'border-teal-pale bg-white text-slate/60',
+  }[state]
+  return (
+    <li className="relative ps-11 pb-9 last:pb-0">
+      {!last && (
+        <span
+          aria-hidden="true"
+          className="absolute start-[13px] top-8 bottom-1 w-0.5 bg-teal-pale"
+        />
+      )}
+      <span
+        aria-hidden="true"
+        className={`absolute start-0 top-0 flex size-7 items-center justify-center rounded-full border-2 text-sm font-semibold ${marker}`}
+      >
+        {state === 'done' ? (
+          <svg viewBox="0 0 16 16" className="size-3.5">
+            <path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" strokeWidth="2" />
+          </svg>
+        ) : (
+          number
+        )}
+      </span>
+      <h2 className="mb-3 text-lg leading-7 font-semibold">{title}</h2>
+      {children}
+    </li>
+  )
+}
+
+export default function SetupScreen({ hasKey, onOpenSettings, onLessonReady }) {
+  const builder = useLessonBuilder()
+  const { stage, raw, range, error } = builder
+  const [prompt, setPrompt] = useState('')
+  const fileInputRef = useRef(null)
+
+  // Key problems open the settings dialog with the reason.
+  useEffect(() => {
+    if (error?.code === 'NO_KEY' || error?.code === 'INVALID_KEY') {
+      onOpenSettings(messageFor(error.code).text)
+    }
+  }, [error, onOpenSettings])
+
+  const busy = stage === 'reading' || stage === 'planning'
+  const rangeOk = raw && range && checkRange(raw.pages, range).ok
+  const scannedInRange =
+    raw && range
+      ? raw.pages.filter((p) => p.isScan && p.page >= range.from && p.page <= range.to)
+      : []
+  const canBuild = rangeOk && hasKey && !busy
+  const fileError = stage === 'error' && !raw
+  const buildError = stage === 'error' && raw
+
+  // Exactly one amber "you are here" stop: the first one that is not done.
+  const stopState = (done, current) => (done ? 'done' : current ? 'current' : 'todo')
+  const promptDone = prompt.trim() !== ''
+
+  async function handleBuild() {
+    const teacherPrompt = prompt.trim()
+    const result = await builder.build(teacherPrompt)
+    if (result) onLessonReady({ ...result, teacherPrompt })
+  }
+
+  function handleAction(action) {
+    if (action === 'retry') handleBuild()
+    if (action === 'settings') onOpenSettings(null)
+    if (action === 'pick-file') fileInputRef.current?.click()
+  }
+
+  return (
+    <main className="mx-auto w-full max-w-2xl px-4 pt-8 pb-16 sm:px-6 sm:pt-12">
+      <h1 className="text-3xl leading-tight font-semibold text-balance sm:text-4xl">
+        Turn a file into a lesson
+      </h1>
+      <p className="mt-3 max-w-prose text-lg leading-relaxed text-slate/75">
+        Pick the material, say how it should be taught, and a tutor teaches it to your student one
+        step at a time, checking understanding as it goes.
+      </p>
+
+      <ol className="mt-10">
+        <Stop number={1} title="Your file" state={stopState(Boolean(raw), !raw)}>
+          <div className="flex flex-col gap-3">
+            <FilePicker
+              inputRef={fileInputRef}
+              fileName={raw?.name}
+              summary={raw && fileSummary(raw)}
+              disabled={busy}
+              onFile={builder.readSelectedFile}
+            />
+            {stage === 'reading' && (
+              <BuildProgress
+                label={
+                  builder.progress
+                    ? `Reading page ${builder.progress.done + 1} of ${builder.progress.total}`
+                    : 'Reading file…'
+                }
+                progress={builder.progress}
+                onCancel={builder.cancel}
+              />
+            )}
+            {fileError && <ErrorNotice key={error.at} error={error} onAction={handleAction} />}
+            {range?.needsPicker && (
+              <RangePicker
+                raw={raw}
+                range={range}
+                onChange={builder.setRange}
+                unit={raw.kind === 'text' ? 'section' : 'page'}
+              />
+            )}
+            {scannedInRange.length > 0 && (
+              <p className="rounded-xl bg-surface px-4 py-3 text-sm leading-relaxed">
+                Scanned pages aren&apos;t supported yet, so the lesson uses only the pages with
+                text.
+              </p>
+            )}
+          </div>
+        </Stop>
+
+        <Stop
+          number={2}
+          title="How to teach it"
+          state={stopState(Boolean(raw) && promptDone, Boolean(raw) && !promptDone)}
+        >
+          <label htmlFor="teacher-prompt" className="sr-only">
+            Teacher prompt
+          </label>
+          <textarea
+            id="teacher-prompt"
+            dir="auto"
+            rows={4}
+            maxLength={MAX_PROMPT}
+            value={prompt}
+            onChange={(event) => setPrompt(event.target.value)}
+            placeholder={EXAMPLE_PROMPT}
+            aria-describedby="teacher-prompt-hint"
+            className="w-full resize-y rounded-xl border border-slate/25 bg-white px-4 py-3 text-base leading-relaxed placeholder:text-slate/45 focus-visible:border-teal focus-visible:outline-offset-0"
+          />
+          <div
+            id="teacher-prompt-hint"
+            className="mt-1.5 flex justify-between gap-4 text-sm text-slate/65"
+          >
+            <span>Audience, language, style, length. Optional.</span>
+            <span className="shrink-0 tabular-nums">
+              {prompt.length} / {MAX_PROMPT}
+            </span>
+          </div>
+        </Stop>
+
+        <Stop
+          number={3}
+          title="Build the lesson"
+          state={raw && promptDone ? 'current' : 'todo'}
+          last
+        >
+          <div className="flex flex-col gap-3">
+            {stage === 'planning' ? (
+              <BuildProgress label="Planning the lesson…" onCancel={builder.cancel} />
+            ) : (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <button
+                  type="button"
+                  onClick={handleBuild}
+                  disabled={!canBuild}
+                  className="rounded-xl bg-teal px-6 py-3 text-base font-medium text-white hover:bg-teal/90 disabled:cursor-not-allowed disabled:bg-slate/10 disabled:text-slate/45"
+                >
+                  Build lesson
+                </button>
+                {!hasKey ? (
+                  <p className="text-sm text-slate/70">
+                    Needs a Gemini API key.{' '}
+                    <button
+                      type="button"
+                      onClick={() => onOpenSettings(null)}
+                      className="font-medium text-teal underline underline-offset-2"
+                    >
+                      Add API key
+                    </button>
+                  </p>
+                ) : (
+                  !raw && <p className="text-sm text-slate/70">Choose a file first.</p>
+                )}
+              </div>
+            )}
+            {buildError && <ErrorNotice key={error.at} error={error} onAction={handleAction} />}
+          </div>
+        </Stop>
+      </ol>
+    </main>
+  )
+}

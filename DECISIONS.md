@@ -106,6 +106,14 @@ A running log of the choices behind "Teach Me This File": what I chose, what I r
 - **Why:** the schema shapes the output but does not guarantee ids exist or limits hold, and the tutor endpoint rejects plan text over 500 characters and more than 8 steps. Repairing silently could leave a step with no real source passage, which would make citations fake. One retry keeps the cost and the wait bounded.
 - **Prompt:** the rules and the teacher prompt (in a `<teacher_instructions>` fence) are in the system instruction; the document goes in the user turn inside `<document>` as data. The prompt states the step count (one step per 2.5 minutes, 3–8), one idea per step, and a check question answerable from the step's passages. The step count is given as a formula with examples (15 minutes → 6 steps) rather than a number, because the duration is extracted from the teacher prompt in the same call. Real runs led to three changes: a title names exactly one concept and a check question is a single question with one question mark (worded without English-only tests such as "if the title needs _and_", which fail in French); step 1 introduces the document's central idea; the last step connects the ideas when the document shows how they fit together.
 
+### D17. Setup flow: a three-stop route, optional prompt, errors where they happen
+
+- **Chose:** the setup screen is the same "route" as the lesson (D13): three stops (file, how to teach it, build) with one amber "you are here" marker on the first stop that is not done. The teacher prompt is optional: with no prompt the plan uses the document's language and default pacing. Errors appear under the stop that caused them, with the one button that fixes them (copy lives in `client/src/ui/errorMessages.js`). Key errors open the settings dialog with the reason. Build lesson is disabled until there is a file, a usable page range and a key; the reason is shown next to it.
+- **Rejected:** a multi-screen wizard; a modal error dialog; making the prompt required.
+- **Why:** one screen is faster on a phone and the route teaches the visual language before the lesson starts. An empty prompt still yields a sensible lesson, so blocking on it would only add friction.
+- **Details:** pdf.js (~430 kB) is loaded with a dynamic `import()` only when a PDF is picked, so the first screen stays small. An empty text file is reported as `NO_CONTENT` as soon as it is read, not after pressing Build. The file is read in the browser with a page-by-page progress line and Cancel (an `AbortController` stops reading and the plan request). PDF pages are rendered for transcription so their long side is exactly 1,600 px (vector pages can be scaled up for sharper text); photos are only scaled down.
+- **Temporary limit:** scanned pages and images are not transcribed yet. The setup screen says "Scanned pages aren't supported yet" and builds from the text pages only (scan pages are recorded as skipped); a file with only scans ends in `NO_CONTENT`.
+
 ## What I decided not to do (and why)
 
 - Shareable links / multi-device lessons (D1).
@@ -138,6 +146,7 @@ Runtime
 - `react`, `react-dom`: the UI library required by the brief.
 - `express`: the Node HTTP layer; the same app runs in dev and on Vercel (D6, D14).
 - `@google/genai`: Google's official Gemini SDK; streaming, JSON-schema output and abort support without hand-rolled REST.
+- `pdfjs-dist`: Mozilla's PDF.js, the standard way to read a PDF's text layer and render pages in the browser; runs its parser in a Web Worker.
 
 Build and test
 
@@ -164,5 +173,6 @@ Custom lint rules
 - `no-restricted-properties` on `localStorage`: the app never uses it (D11, D12).
 - `no-restricted-properties` on `sessionStorage`: only `keyStore.js` and `persistence.js` may use it, so the key cannot be stored by accident.
 - `no-restricted-properties` on `describe|it|test` `.only|.skip` in tests: a focused or skipped test must not be committed (done with core ESLint instead of `eslint-plugin-vitest`, to avoid a dependency).
+- One inline disable: `react-hooks/set-state-in-effect` in `App.jsx`, where the result of saving the lesson to sessionStorage is only known after the write, so it is stored in an effect (one extra render per lesson change).
 - `no-unused-vars` in `client/` ignores names starting with a capital letter: core ESLint does not count `<Component />` as a use of the import (same setting as the Vite template).
 - `no-console` is an error in `client/` and a warning in `server/`; server logging goes through one small logger (added later).

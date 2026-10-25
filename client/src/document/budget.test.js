@@ -67,4 +67,8 @@ describe('checkRange', () => {
     expect(checkRange(scanPages(21), { from: 1, to: 21 }).ok).toBe(false)
     expect(checkRange(textPages(200), { from: 1, to: 200 }).ok).toBe(false)
   })
+
+  it('rejects a range with no pages in it', () => {
+    expect(checkRange(textPages(3), { from: 3, to: 2 }).ok).toBe(false)
+  })
 })

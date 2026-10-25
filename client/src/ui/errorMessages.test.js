@@ -37,6 +37,13 @@ describe('messageFor', () => {
     expect(messageFor('NETWORK').action).toBe('retry')
   })
 
+  it('offers a reload when the server rejects the request (likely an older app version)', () => {
+    expect(messageFor('BAD_REQUEST')).toEqual({
+      text: 'The app was updated or the connection dropped. Reload the page to continue.',
+      action: 'reload',
+    })
+  })
+
   it('sends key problems to the settings', () => {
     expect(messageFor('NO_KEY').action).toBe('settings')
     expect(messageFor('INVALID_KEY').action).toBe('settings')

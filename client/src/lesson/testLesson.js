@@ -1,3 +1,4 @@
+// Test-only fixture data (imported only by *.test.js).
 import { lessonReducer } from './reducer.js'
 
 // Shared test data for the lesson tests: a 3-step plan over a 2-page document.

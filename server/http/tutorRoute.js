@@ -91,9 +91,9 @@ export function createTutorRoute({ createGemini, gradeTimeoutMs = GRADE_TIMEOUT_
       if (meta) sse.send('meta', meta)
       sse.send('done', {})
     } catch (err) {
-      const appError = toAppError(err)
-      code = appError.code
-      if (code !== 'ABORTED') sse.send('error', errorBody(appError).error)
+      const failure = toAppError(err)
+      code = failure.code
+      if (code !== 'ABORTED') sse.send('error', errorBody(failure).error)
     } finally {
       res.end()
       log.info('tutor_turn', {

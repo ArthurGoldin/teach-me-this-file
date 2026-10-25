@@ -84,12 +84,52 @@ const isObject = (value) => typeof value === 'object' && value !== null && !Arra
 const NAMED_ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: '\u00a0' }
 const ENTITY = /&(?:#(\d{1,7})|#x([\da-f]{1,6})|(amp|lt|gt|quot|apos|nbsp));/gi
 
+// Surrogates and control characters (except tab and newline) are left as written.
+const isDecodable = (code) =>
+  code === 0x09 ||
+  code === 0x0a ||
+  (code >= 0x20 && code <= 0x10ffff && (code < 0xd800 || code > 0xdfff))
+
 function decodeEntities(text) {
   return text.replace(ENTITY, (entity, dec, hex, name) => {
     if (name) return NAMED_ENTITIES[name.toLowerCase()]
     const code = dec ? Number(dec) : parseInt(hex, 16)
-    return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : entity
+    return isDecodable(code) ? String.fromCodePoint(code) : entity
   })
+}
+
+// Plan text as the app will use it: entities decoded, then trimmed. Decoding comes before
+// validation, so "&nbsp;" cannot pass as a non-empty field and turn blank afterwards.
+const clean = (value) => (typeof value === 'string' ? decodeEntities(value).trim() : value)
+
+function cleanStep(step) {
+  if (!isObject(step)) return step
+  return {
+    ...step,
+    title: clean(step.title),
+    objective: clean(step.objective),
+    checkQuestion: clean(step.checkQuestion),
+    keyPoints: Array.isArray(step.keyPoints) ? step.keyPoints.map(clean) : step.keyPoints,
+  }
+}
+
+function cleanPlan(plan) {
+  if (!isObject(plan)) return plan
+  const { brief, steps } = plan
+  return {
+    ...plan,
+    title: clean(plan.title),
+    brief: isObject(brief)
+      ? {
+          ...brief,
+          language: clean(brief.language),
+          audience: clean(brief.audience),
+          style: clean(brief.style),
+          notes: clean(brief.notes),
+        }
+      : brief,
+    steps: Array.isArray(steps) ? steps.map(cleanStep) : steps,
+  }
 }
 
 function isValidStep(step, passageIds) {
@@ -107,7 +147,7 @@ function isValidBrief(brief) {
   return (
     isObject(brief) &&
     isPlanText(brief.language) &&
-    LANGUAGE_TAG.test(brief.language.trim()) &&
+    LANGUAGE_TAG.test(brief.language) &&
     [brief.audience, brief.style, brief.notes].every(isOptionalPlanText)
   )
 }
@@ -117,11 +157,12 @@ function isValidBrief(brief) {
 export function validatePlan(response, passageIds) {
   if (!isObject(response)) throw appError('PLAN_INVALID')
   if (response.ok === false) {
-    if (!isPlanText(response.reason)) throw appError('PLAN_INVALID')
-    return { ok: false, reason: decodeEntities(response.reason).trim() }
+    const reason = clean(response.reason)
+    if (!isPlanText(reason)) throw appError('PLAN_INVALID')
+    return { ok: false, reason }
   }
 
-  const { plan } = response
+  const plan = cleanPlan(response.plan)
   if (
     response.ok !== true ||
     !isObject(plan) ||
@@ -136,26 +177,25 @@ export function validatePlan(response, passageIds) {
   }
 
   const { brief } = plan
-  const trim = (value) => decodeEntities(value ?? '').trim()
   const duration = brief.durationMinutes
   return {
     ok: true,
     plan: {
-      title: trim(plan.title),
+      title: plan.title,
       brief: {
-        language: trim(brief.language),
-        audience: trim(brief.audience),
-        style: trim(brief.style),
+        language: brief.language,
+        audience: brief.audience ?? '',
+        style: brief.style ?? '',
         durationMinutes:
           Number.isFinite(duration) && duration > 0 ? duration : DEFAULT_DURATION_MINUTES,
-        notes: trim(brief.notes),
+        notes: brief.notes ?? '',
       },
       steps: plan.steps.map((step, i) => ({
         id: `s${i + 1}`,
-        title: trim(step.title),
-        objective: trim(step.objective),
-        keyPoints: step.keyPoints.map(trim),
-        checkQuestion: trim(step.checkQuestion),
+        title: step.title,
+        objective: step.objective,
+        keyPoints: step.keyPoints,
+        checkQuestion: step.checkQuestion,
         passageIds: [...new Set(step.passageIds)],
       })),
     },

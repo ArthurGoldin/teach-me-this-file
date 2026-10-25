@@ -154,6 +154,28 @@ describe('validatePlan', () => {
     )
   })
 
+  it('rejects a field that is only an entity for blank space', () => {
+    const steps = [makeStep({ title: '&nbsp;' }), makeStep(), makeStep()]
+    expect(errorOf(() => validatePlan(makeResponse({ steps }), knownIds)).code).toBe('PLAN_INVALID')
+    const points = [makeStep({ keyPoints: ['a', ' &#32; '] }), makeStep(), makeStep()]
+    expect(errorOf(() => validatePlan(makeResponse({ steps: points }), knownIds)).code).toBe(
+      'PLAN_INVALID',
+    )
+    expect(errorOf(() => validatePlan({ ok: false, reason: '&nbsp;' }, knownIds)).code).toBe(
+      'PLAN_INVALID',
+    )
+  })
+
+  it('leaves surrogate and control-character entities as written, except tab and newline', () => {
+    const steps = [
+      makeStep({ title: 'a&#xD800;b&#1;c&#9;d&#10;e&#x1F600;' }),
+      makeStep(),
+      makeStep(),
+    ]
+    const { plan } = validatePlan(makeResponse({ steps }), knownIds)
+    expect(plan.steps[0].title).toBe('a&#xD800;b&#1;c\td\ne\u{1F600}')
+  })
+
   it('trims the ok:false reason', () => {
     expect(validatePlan({ ok: false, reason: ' Nothing to teach. ' }, knownIds)).toEqual({
       ok: false,

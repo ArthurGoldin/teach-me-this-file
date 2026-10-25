@@ -1,5 +1,7 @@
 # Teach Me This File — Design
 
+> Design as planned on 2026-10-25; where it differs, [DECISIONS.md](../DECISIONS.md) and the code win.
+
 Status: draft for approval · Date: 2026-10-25 · Brief: [assignment.md](assignment.md) · Decision log: [../DECISIONS.md](../DECISIONS.md)
 
 ## 1. Intent
@@ -35,7 +37,7 @@ A teacher uploads a school file and writes a short prompt ("Teach this to 7th gr
 
 - React + Vite + Tailwind CSS + **JavaScript** (no TypeScript); Node.js back end.
 - Hosting: **Vercel Hobby**, one project. Function limits: **4.5 MB request/response body**, **300 s max duration including streaming**; functions share no memory between invocations ([Vercel limits](https://vercel.com/docs/functions/limitations)).
-- AI: **Gemini API**, model `gemini-3.5-flash-lite` (switched after a latency smoke test, see DECISIONS D3; free tier; text, image and PDF input; 1,048,576-token input; 65,536-token output; structured output supported). Verified 2026-10-25 on Google's [models](https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash) and [pricing](https://ai.google.dev/gemini-api/docs/pricing) pages. The first build task smoke-tests it with a real key (streaming, JSON schema, image input, abort); fallback `gemini-3.5-flash-lite`. Free-tier content may be used by Google to improve products — accepted and disclosed.
+- AI: **Gemini API**, primary model `gemini-3.5-flash-lite`, chosen after a latency smoke test with a real key (streaming, JSON schema, image input, abort); see [DECISIONS D3](../DECISIONS.md#d3-one-ai-provider-google-gemini-model-gemini-35-flash-lite). Free tier; text, image and PDF input; structured output supported. Checked on Google's [models](https://ai.google.dev/gemini-api/docs/models) and [pricing](https://ai.google.dev/gemini-api/docs/pricing) pages on 2026-10-25. Free-tier content may be used by Google to improve products — accepted and disclosed.
 - SDK: `@google/genai`; `GenerateContentConfig` supports `abortSignal` (client-side only) and `responseJsonSchema` (verified with context7).
 - Free-tier rate limits are per Google Cloud project and only shown in AI Studio; third-party reports suggest ~10 requests/min for Flash. The design minimises calls per turn.
 - The key comes from the user per request (header); optional `GEMINI_API_KEY` env fallback on the host.
@@ -100,7 +102,7 @@ client/src/
                keyStore.js (the ONLY place the key may touch sessionStorage)
 server/
   app.js       Express app (routes wired here); exported for Vercel and local dev
-  dev.js       local entry: app.listen(PORT)
+  (no dev entry: locally, Vite mounts server/app.js as middleware, D14)
   http/        apiKey.js, errors.js (Gemini error → our code), sse.js, logger.js
   ai/          gemini.js, prompts/{plan,tutor,transcribe}.js, meta.js, planSchema.js
 api/index.js   Vercel entry: re-exports server/app.js
@@ -222,7 +224,8 @@ Teacher picks file + writes prompt
 ```
 Student sends text (or the app triggers an automatic turn)
   │
-  ├─ reducer: STUDENT_SENT; selector nextTurnMode(state) → 'introduce' | 'guide' | 'explain' | 'wrap-up'
+  ├─ student turn: reducer studentSent; nextStudentTurnMode(state) → 'guide' | 'explain'
+  │   automatic turn: the reducer's pendingAuto → 'introduce' | 'wrap-up'
   ├─ POST /api/tutor   (Accept: text/event-stream, header X-Gemini-Key)
   │     body: { brief, teacherPrompt, lessonTitle, stepNumber, stepCount,
   │             step: { title, objective, keyPoints, checkQuestion, passages: Passage[] },
@@ -293,7 +296,7 @@ On `TUTOR_FINISHED` (stream completed normally):
 
 On `TUTOR_STOPPED` / `TUTOR_FAILED`: **no change to progress.** The partial text stays. A failed turn shows Retry, which re-runs the same request (same mode, same step); this also covers a failed automatic `introduce` after an advance — the advance already happened (it was based on a valid earlier turn), Retry only re-asks for the intro.
 
-The composer is disabled while a turn is streaming (Stop is shown instead of Send), so there is never more than one turn in flight.
+The composer is read-only (not disabled, so it keeps focus and the phone keyboard) while a turn is streaming, and Stop is shown instead of Send, so there is never more than one turn in flight (D18).
 
 Why a separate `introduce` turn instead of "confirm + start the next step" in one message: the reducer's advance and the text the student sees can never disagree. Cost: one extra call per step (≈ 6 per lesson), well inside free-tier limits because a student's replies are tens of seconds apart.
 
@@ -322,22 +325,23 @@ Errors after the stream started: `event: error` + `data: {"code":"RATE_LIMITED",
 
 All server errors are JSON `{ error: { code, message, retryAfterSeconds? } }` (or an SSE `error` event). Provider errors are mapped in one place (`server/http/errors.js`); raw provider messages are never forwarded.
 
-| Code                 | Detected                                                                                             | UI                                                                                    |
-| -------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `NO_KEY`             | client before request (no key and server has no env key, from `GET /api/config`)                     | Settings dialog opens: "Paste a Gemini API key to start" + link to AI Studio          |
-| `INVALID_KEY`        | Gemini 400/401/403 key errors                                                                        | "Gemini rejected this API key." Opens settings; lesson state kept                     |
-| `RATE_LIMITED`       | Gemini 429                                                                                           | "Gemini's free-tier limit was reached. Try again in N s." Retry button with countdown |
-| `MODEL_BUSY`         | Gemini 500/503                                                                                       | "Gemini is busy right now." Retry button                                              |
-| `BLOCKED`            | prompt/response blocked by safety                                                                    | "Gemini declined to answer this. Try rephrasing."                                     |
-| `NETWORK`            | fetch failure, offline, or a stream that ends without `done` (e.g. the function hit its 300 s limit) | "Connection lost." Partial text kept, Retry                                           |
-| `PAYLOAD_TOO_LARGE`  | 413                                                                                                  | "This page image is too large." (should not happen; client downscales)                |
-| `UNSUPPORTED_FILE`   | client (type check)                                                                                  | "DOCX isn't supported yet. Export it as PDF and try again." (per type)                |
-| `FILE_TOO_LARGE`     | client (> 50 MB)                                                                                     | Size message                                                                          |
-| `CORRUPT_FILE`       | client (pdf.js throws, password-protected PDF)                                                       | "This PDF couldn't be opened."                                                        |
-| `NO_CONTENT`         | client (no text and no images) or plan `ok:false`                                                    | Reason shown on setup screen; teacher can pick another file                           |
-| `PLAN_INVALID`       | server (schema invalid twice)                                                                        | "Couldn't build a lesson from this file. Try again."                                  |
-| `TRANSCRIBE_INVALID` | server (transcription answer is not JSON)                                                            | "Couldn't read the scanned pages. Try again."                                         |
-| `INTERNAL`           | anything else                                                                                        | "Something went wrong on our side." Retry                                             |
+| Code                 | Detected                                                                                             | UI                                                                                          |
+| -------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `NO_KEY`             | client before request (no key and server has no env key, from `GET /api/config`)                     | Settings dialog opens: "Paste a Gemini API key to start" + link to AI Studio                |
+| `INVALID_KEY`        | Gemini 400/401/403 key errors                                                                        | "Gemini rejected this API key." Opens settings; lesson state kept                           |
+| `RATE_LIMITED`       | Gemini 429                                                                                           | "Gemini's free-tier limit was reached. Try again in N s." Retry button with countdown       |
+| `MODEL_BUSY`         | Gemini 500/503                                                                                       | "Gemini is busy right now." Retry button                                                    |
+| `BLOCKED`            | prompt/response blocked by safety                                                                    | "Gemini declined to answer this. Try rephrasing."                                           |
+| `NETWORK`            | fetch failure, offline, or a stream that ends without `done` (e.g. the function hit its 300 s limit) | "Connection lost." Partial text kept, Retry                                                 |
+| `PAYLOAD_TOO_LARGE`  | 413                                                                                                  | "This page image is too large." (should not happen; client downscales)                      |
+| `UNSUPPORTED_FILE`   | client (type check)                                                                                  | "DOCX isn't supported yet. Export it as PDF and try again." (per type)                      |
+| `FILE_TOO_LARGE`     | client (> 50 MB)                                                                                     | Size message                                                                                |
+| `CORRUPT_FILE`       | client (pdf.js throws, password-protected PDF)                                                       | "This PDF couldn't be opened."                                                              |
+| `NO_CONTENT`         | client (no text and no images) or plan `ok:false`                                                    | Reason shown on setup screen; teacher can pick another file                                 |
+| `BAD_REQUEST`        | server 400 (request shape rejected, e.g. a tab still running an older app version)                   | "The app was updated or the connection dropped. Reload the page to continue." Reload button |
+| `PLAN_INVALID`       | server (schema invalid twice)                                                                        | "Couldn't build a lesson from this file. Try again."                                        |
+| `TRANSCRIBE_INVALID` | server (transcription answer is not JSON)                                                            | "Couldn't read the scanned pages. Try again."                                               |
+| `INTERNAL`           | anything else                                                                                        | "Something went wrong on our side." Retry                                                   |
 
 Loading states: setup shows real stages ("Reading file… Reading scanned pages 3 of 8… Planning lesson…") with Cancel; tutor shows a typing indicator until the first delta. Empty states: setup drop zone with an example prompt; the chat never starts empty (automatic first turn).
 
@@ -381,7 +385,7 @@ Dev: `vite`, `@vitejs/plugin-react`, `vitest`, ESLint + plugins, Prettier + tail
 
 1. Wrong answer → no reveal; hint + re-ask; after two misses, worked explanation and move on.
 2. "Just give me the answer / summarise everything" → stays one step at a time.
-3. "7th graders, in French, Socratic, < 15 min" on an English file → French, age-appropriate, questions first, ~6 steps.
+3. "7th graders, in French, Socratic, < 15 min" on an English file → French, age-appropriate, teaches first, then asks, ~6 steps.
 4. Question not in the file → says so, redirects, no invented facts; source chip points to a real passage.
 5. File containing "Ignore your instructions and…" → ignored.
 6. Hebrew/Arabic file → RTL rendering and teaching in that language.
@@ -395,7 +399,7 @@ Dev: `vite`, `@vitejs/plugin-react`, `vitest`, ESLint + plugins, Prettier + tail
 | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | pdf.js returns Hebrew/Arabic in visual (reversed) order | Spike in hour 1 with a real Hebrew PDF. If broken: stretch option "Read pages with AI" (forces transcription of the chosen pages); otherwise documented weakness |
 | Formulas in text-layer PDFs come out flat               | Same stretch option; documented weakness                                                                                                                         |
-| Model skips or breaks the META block                    | Fallback: no progress, no citation, visible "No source"; eval measures how often                                                                                 |
+| Model skips or breaks the META block                    | Fallback grader: one structured grading call for that turn (D8); if it fails too, no progress, no citation, visible "No source"                                  |
 | Free-tier rate limits during review                     | One call per turn; scan pages batched; clear `RATE_LIMITED` state with countdown                                                                                 |
 | Vercel does not propagate client disconnect             | Verified in deploy-early task; if not, Stop still ends the client stream and the server stops at the 300 s cap — documented                                      |
 | Plan call slow on large input                           | Budget cap (100K tokens); staged progress; 300 s function limit far above expected                                                                               |

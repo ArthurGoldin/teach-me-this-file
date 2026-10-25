@@ -199,7 +199,7 @@ describe('buildTutorRequest', () => {
       'Test: a student who reads only your hint and question must not learn any fact from them.',
     )
     expect(systemInstruction).toContain(
-      'never write the sentence that answers the check question, not even inside a hint',
+      'Never write the sentence that answers the check question, not even inside a hint',
     )
     expect(systemInstruction).toContain(
       'Start with the smallest useful hint; make each next hint a little more precise about which idea to use, never about the answer.',
@@ -215,6 +215,17 @@ describe('buildTutorRequest', () => {
     expect(systemInstruction).toContain(
       'explain the current small idea clearly, but leave the exact answer to the check question for the student, then ask one easy, open question (not an either/or choice) that lets them supply it.',
     )
+  })
+
+  it('in explain mode, first confirms a latest message that already answers correctly', () => {
+    expect(MODE_INSTRUCTIONS.explain).toContain(
+      "If the student's latest message already answers the check question correctly, say so first, then give the worked example briefly.",
+    )
+  })
+
+  it('no longer allows re-explaining with a different example on a wrong answer', () => {
+    const { systemInstruction } = buildTutorRequest(makeInput())
+    expect(systemInstruction).not.toContain('You may re-explain')
   })
 
   it('counts an answer to an easier follow-up or hint question as no attempt', () => {

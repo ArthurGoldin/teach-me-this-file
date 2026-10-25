@@ -18,7 +18,7 @@ function TypingDots() {
   )
 }
 
-const ACTION_LABELS = { retry: 'Try again', settings: 'Open settings' }
+const ACTION_LABELS = { retry: 'Try again', settings: 'Open settings', reload: 'Reload page' }
 
 // Why a turn failed, with the action that fixes it (a key problem also offers Try again, for
 // after the key is fixed). Only the latest message offers actions:
@@ -54,6 +54,8 @@ function FailedNote({ error, canAct, onRetry, onOpenSettings }) {
           onClick={() => {
             if (waiting) return
             if (action === 'retry') onRetry()
+            // BAD_REQUEST: this tab runs an older app; the lesson is saved, so a reload is safe.
+            else if (action === 'reload') window.location.reload()
             else onOpenSettings()
           }}
           className="rounded-lg border border-teal px-3 py-1.5 font-medium text-teal hover:bg-teal hover:text-white aria-disabled:cursor-not-allowed aria-disabled:border-slate/20 aria-disabled:text-slate/50 aria-disabled:hover:bg-transparent"

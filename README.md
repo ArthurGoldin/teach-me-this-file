@@ -4,7 +4,7 @@ A teacher uploads a file (PDF, photo, text) and writes a short prompt. The app t
 
 **Live:** https://teach-me-this-file-five.vercel.app
 
-Design and reasoning: [DECISIONS.md](DECISIONS.md) (choices, weaknesses, test scenarios) and [docs/design.md](docs/design.md).
+Design and reasoning: [DECISIONS.md](DECISIONS.md) (choices, weaknesses, test scenarios) and [docs/design.md](docs/design.md). Screenshots: [docs/screenshots/](docs/screenshots/).
 
 ## Get a Gemini key
 
@@ -59,7 +59,7 @@ npm run dev          # http://localhost:5173 (Vite and the Express API in one pr
 
 Optional: copy `.env.example` to `.env` and set `GEMINI_API_KEY=...`. The local server then uses it when no key is pasted. `.env` is git-ignored.
 
-Checks (all must be clean before a commit):
+Checks (run before committing; the pre-commit hook runs ESLint, Prettier and secretlint on staged files):
 
 ```bash
 npm test             # Vitest unit tests

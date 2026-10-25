@@ -29,14 +29,19 @@ it('responds with the error body otherwise', () => {
 })
 
 it.each([
-  ['an aborted request', new AppError('ABORTED', 'Request aborted', { status: 499 }), {}],
-  ['a destroyed response', { status: 503 }, { destroyed: true }],
-])('writes nothing for %s and logs ABORTED', (_, err, resFields) => {
+  [
+    'an aborted request',
+    new AppError('ABORTED', 'Request aborted', { status: 499 }),
+    {},
+    'ABORTED',
+  ],
+  ['a destroyed response', { status: 503 }, { destroyed: true }, 'MODEL_BUSY'],
+])('writes nothing for %s and logs its code', (_, err, resFields, code) => {
   const next = vi.fn()
   const res = { headersSent: false, status: vi.fn(), ...resFields }
   errorHandler(err, { path: '/api/plan' }, res, next)
   expect(res.status).not.toHaveBeenCalled()
   expect(next).not.toHaveBeenCalled()
   expect(logged()).toContain('"event":"request_aborted"')
-  expect(logged()).toContain('"code":"ABORTED"')
+  expect(logged()).toContain(`"code":"${code}"`)
 })

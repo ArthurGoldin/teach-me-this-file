@@ -24,13 +24,13 @@ function rateLimited(retryAfterSeconds) {
  *   reloadNeeded: part of the app's own code failed to download (see readFile.js)
  * @returns {{ text: string, action: 'retry' | 'settings' | 'pick-file' | 'reload' | null }}
  */
+const RELOAD = {
+  text: 'The app was updated or the connection dropped. Reload the page to continue.',
+  action: 'reload',
+}
+
 export function messageFor(code, { retryAfterSeconds, fileType, reloadNeeded } = {}) {
-  if (reloadNeeded) {
-    return {
-      text: 'The app was updated or the connection dropped. Reload the page to continue.',
-      action: 'reload',
-    }
-  }
+  if (reloadNeeded) return RELOAD
   switch (code) {
     case 'NO_KEY':
       return { text: 'Paste a Gemini API key to start.', action: 'settings' }
@@ -62,6 +62,9 @@ export function messageFor(code, { retryAfterSeconds, fileType, reloadNeeded } =
       return { text: 'No readable text was found in this file.', action: 'pick-file' }
     case 'TRANSCRIBE_INVALID':
       return { text: "Couldn't read the scanned pages. Try again.", action: 'retry' }
+    // The server rejected the request shape: most likely this tab runs an older app version.
+    case 'BAD_REQUEST':
+      return RELOAD
     case 'PLAN_INVALID':
       return { text: "Couldn't build a lesson from this file. Try again.", action: 'retry' }
     default:

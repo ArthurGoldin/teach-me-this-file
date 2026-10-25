@@ -53,7 +53,7 @@ Set these up in the scaffolding task, before any feature code. Verify current pa
 ## Project map
 
 - `client/src/ui/`: React components and the two I/O hooks (`useLessonBuilder` for setup, `useTutor` for lesson turns); no prompt text, no lesson rules. Error copy: `errorMessages.js`
-- `client/src/lesson/`: `reducer.js`, `selectors.js` (`MAX_MISSES`, `MAX_TURNS`, `buildTutorInput`), `persistence.js` (pure, unit-tested)
+- `client/src/lesson/`: `reducer.js`, `selectors.js` (`MAX_MISSES`, `MAX_TURNS`, `buildTutorInput`), `persistence.js` (unit-tested with injected storage)
 - `client/src/document/`: `readFile.js` (file types), pdf.js wrapper, passages and chunking, token budget, page range, transcription batches
 - `client/src/api/`: fetch client, SSE parser, `keyStore.js` (the only place the key may touch sessionStorage)
 - `server/app.js`: Express app, shared by dev and Vercel

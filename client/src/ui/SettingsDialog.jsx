@@ -3,7 +3,15 @@ import { clearKey, getKey, isRemembered, setKey } from '../api/keyStore.js'
 
 // API key settings (design §10, §11 screen 4). The key stays in memory, or in sessionStorage
 // when "Remember for this tab" is ticked. It is never shown back, only replaced or removed.
-export default function SettingsDialog({ reason, hasServerKey, onClose, onKeyChange }) {
+// `onFocusFallback` focuses the app bar's key button: used on close when nothing had focus
+// before, e.g. when the app opened the dialog on its own.
+export default function SettingsDialog({
+  reason,
+  hasServerKey,
+  onFocusFallback,
+  onClose,
+  onKeyChange,
+}) {
   const dialogRef = useRef(null)
   const inputRef = useRef(null)
   const [draft, setDraft] = useState('')
@@ -12,12 +20,21 @@ export default function SettingsDialog({ reason, hasServerKey, onClose, onKeyCha
 
   // Mounted only while open (see App), so `remember` and the draft start fresh each time.
   // The native <dialog> gives focus trapping, Escape and the backdrop for free.
+  // React removes the dialog while it is still open, so the browser's own focus return does not
+  // happen: focus goes back to the button that opened it (or the key button) by hand.
+  // Read while rendering, before the dialog takes focus (and before React StrictMode's second
+  // effect run, which would otherwise see focus already inside the dialog).
+  const [opener] = useState(() => document.activeElement)
   useEffect(() => {
     const dialog = dialogRef.current
     if (!dialog.open) dialog.showModal()
     // Start on the key field rather than the close button.
     inputRef.current.focus()
-  }, [])
+    return () => {
+      if (opener?.isConnected && opener !== document.body) opener.focus()
+      else onFocusFallback()
+    }
+  }, [opener, onFocusFallback])
 
   function handleSubmit(event) {
     event.preventDefault()

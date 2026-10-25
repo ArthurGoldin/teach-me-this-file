@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { hasAppLine } from './lessonFormat.js'
 
 const MAX_MESSAGE = 2000
@@ -9,6 +9,7 @@ const MAX_MESSAGE = 2000
 // its keyboard open between turns.
 export default function Composer({ streaming, locked, onSend, onStop }) {
   const [draft, setDraft] = useState('')
+  const inputRef = useRef(null)
   const blocked = hasAppLine(draft)
   const canSend = !locked && draft.trim() !== '' && !blocked
 
@@ -39,6 +40,7 @@ export default function Composer({ streaming, locked, onSend, onStop }) {
         </label>
         <textarea
           id="student-message"
+          ref={inputRef}
           dir="auto"
           rows={1}
           maxLength={MAX_MESSAGE}
@@ -55,7 +57,11 @@ export default function Composer({ streaming, locked, onSend, onStop }) {
         {streaming ? (
           <button
             type="button"
-            onClick={onStop}
+            onClick={() => {
+              onStop()
+              // Stop is replaced by Send, so focus would fall to the page: keep it in the box.
+              inputRef.current.focus()
+            }}
             className="flex h-10 shrink-0 items-center gap-2 rounded-xl bg-slate px-4 font-medium text-white hover:bg-slate/85"
           >
             <span aria-hidden="true" className="size-2.5 rounded-[2px] bg-white" />

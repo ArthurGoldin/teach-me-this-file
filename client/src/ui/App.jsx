@@ -52,6 +52,7 @@ export default function App() {
   const [hasServerKey, setHasServerKey] = useState(false)
   // null = closed; otherwise { reason } (reason may be null when the user opened it).
   const [settings, setSettings] = useState(null)
+  const keyButtonRef = useRef(null)
 
   // Keep the lesson across a reload. A failed save is reported, never silent (design §9).
   // Not while tutor text is streaming in: that would rewrite the whole lesson on every chunk.
@@ -105,6 +106,7 @@ export default function App() {
 
   const openSettings = useCallback((reason) => setSettings({ reason }), [])
   const closeSettings = useCallback(() => setSettings(null), [])
+  const focusKeyButton = useCallback(() => keyButtonRef.current?.focus(), [])
 
   const handleLessonReady = useCallback(
     ({ document, plan, pageImages: images, teacherPrompt }) => {
@@ -126,6 +128,7 @@ export default function App() {
             Teach Me This File
           </span>
           <button
+            ref={keyButtonRef}
             type="button"
             onClick={() => openSettings(null)}
             aria-label={`API key settings: ${keyLabel}`}
@@ -184,6 +187,7 @@ export default function App() {
         <SettingsDialog
           reason={settings.reason}
           hasServerKey={hasServerKey}
+          onFocusFallback={focusKeyButton}
           onClose={closeSettings}
           onKeyChange={() => setHasUserKey(Boolean(getKey()))}
         />

@@ -146,17 +146,17 @@ export function useLessonBuilder() {
     return items
   }
 
-  // `run.waited`: one automatic rate-limit wait per build, not per batch.
-  async function sendBatch(batch, signal, run) {
+  // `waitState.waited`: one automatic rate-limit wait per build, not per batch.
+  async function sendBatch(batch, signal, waitState) {
     const body = batch.map(({ page, base64 }) => ({ page, imageBase64: base64 }))
     try {
       return await transcribePages(body, { signal })
     } catch (err) {
       const seconds = err.retryAfterSeconds
-      if (err.code !== 'RATE_LIMITED' || run.waited || !(seconds <= MAX_AUTO_WAIT_SECONDS)) {
+      if (err.code !== 'RATE_LIMITED' || waitState.waited || !(seconds <= MAX_AUTO_WAIT_SECONDS)) {
         throw err
       }
-      run.waited = true
+      waitState.waited = true
       // One automatic wait, with a countdown, then the same batch once more.
       setRateWait({ retryAfterSeconds: seconds, at: Date.now() })
       setStage('waiting')
@@ -169,7 +169,7 @@ export function useLessonBuilder() {
 
   // Transcribes the scanned pages that have no transcription yet, batch by batch. After a rate
   // limit the pages still missing are attached to the error ("Continue without pages N–M").
-  async function transcribe(scanPages, signal, run) {
+  async function transcribe(scanPages, signal, waitState) {
     const transcripts = transcriptsRef.current
     const missing = () => scanPages.filter((page) => !transcripts.has(page))
     if (missing().length === 0) return
@@ -180,7 +180,7 @@ export function useLessonBuilder() {
     const items = await renderPages(missing(), signal)
     try {
       for (const batch of makeBatches(items)) {
-        const { pages } = await sendBatch(batch, signal, run)
+        const { pages } = await sendBatch(batch, signal, waitState)
         for (const result of pages) {
           const { objectUrl } = batch.find((item) => item.page === result.page)
           if (!result.readable) URL.revokeObjectURL(objectUrl)
@@ -199,6 +199,9 @@ export function useLessonBuilder() {
 
   async function run(teacherPrompt) {
     const signal = startTask()
+    // Leave the error stage at once: startTask cleared the error, and a render in the 'error'
+    // stage without one would crash (transcribe() switches to 'transcribing' if it has work).
+    setStage('planning')
     const { textPages, scanPages, skipped } = selectPages(raw.pages, range)
     try {
       if (!skipRef.current) await transcribe(scanPages, signal, { waited: false })

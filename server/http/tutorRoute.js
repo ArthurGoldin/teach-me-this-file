@@ -1,6 +1,6 @@
 import { createMetaSplitter, parseMeta } from '../ai/meta.js'
 import { buildTutorRequest, validateTutorInput } from '../ai/prompts/tutor.js'
-import { errorBody, toAppError } from './errors.js'
+import { appError, errorBody, toAppError } from './errors.js'
 import { log } from './logger.js'
 import { openSse } from './sse.js'
 
@@ -25,9 +25,13 @@ export function createTutorRoute({ createGemini }) {
       // Trailing whitespace is held until more text follows, so the newline before the meta
       // marker (or at the very end) is never sent.
       let heldSpace = ''
+      let sentText = false
       const emit = (text) => {
         const body = text.trimEnd()
-        if (body) sse.send('delta', { text: heldSpace + body })
+        if (body) {
+          sse.send('delta', { text: heldSpace + body })
+          sentText = true
+        }
         heldSpace = body ? text.slice(body.length) : heldSpace + text
       }
       const stream = gemini.streamText({ ...buildTutorRequest(input), signal: controller.signal })
@@ -39,6 +43,10 @@ export function createTutorRoute({ createGemini }) {
       }
       const { text, metaRaw } = splitter.end()
       emit(text)
+      // Gemini sometimes ends a turn with no visible text (only the meta block, or nothing). An
+      // empty bubble would look like a finished answer, so it is a failed turn the student can
+      // retry; MODEL_BUSY is the closest code (a passing problem on Gemini's side).
+      if (!sentText) throw appError('MODEL_BUSY')
       const meta = parseMeta(
         metaRaw,
         input.step.passages.map((p) => p.id),

@@ -40,7 +40,10 @@ function Stop({ number, title, state, last, children }) {
     todo: 'border-teal-pale bg-white text-slate/60',
   }[state]
   return (
-    <li className="relative ps-11 pb-9 last:pb-0">
+    <li
+      className="relative ps-11 pb-9 last:pb-0"
+      aria-current={state === 'current' ? 'step' : undefined}
+    >
       {!last && (
         <span
           aria-hidden="true"
@@ -59,7 +62,12 @@ function Stop({ number, title, state, last, children }) {
           number
         )}
       </span>
-      <h2 className="mb-3 text-lg leading-7 font-semibold">{title}</h2>
+      {/* The marker is hidden from screen readers, so the heading says the same in words. */}
+      <h2 className="mb-3 text-lg leading-7 font-semibold">
+        <span className="sr-only">Step {number}: </span>
+        {title}
+        {state === 'done' && <span className="sr-only">, done</span>}
+      </h2>
       {children}
     </li>
   )

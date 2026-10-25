@@ -27,10 +27,12 @@ function LessonMenu({ file, onNewLesson }) {
       setOpen(false)
       setConfirming(false)
     }
-    // Only while focus is in the menu, and not when something inside already handled it.
+    // Only while focus is in the menu (or on the page body: Safari does not focus a clicked
+    // button), and not when something inside already handled it.
     const onKey = (event) => {
       if (event.key !== 'Escape' || event.defaultPrevented) return
-      if (!rootRef.current?.contains(event.target)) return
+      const inMenu = rootRef.current?.contains(event.target)
+      if (!inMenu && event.target !== document.body) return
       close()
       buttonRef.current?.focus()
     }

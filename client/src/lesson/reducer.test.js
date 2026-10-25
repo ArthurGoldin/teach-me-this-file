@@ -180,6 +180,12 @@ describe('lessonReducer', () => {
     expect(lessonReducer(state, { type: 'tutorFinished', id: 'gone', meta: null })).toBe(state)
   })
 
+  it('ignores a late tutorFinished for a message that was already stopped', () => {
+    const started = lessonReducer(answered(), { type: 'tutorStarted', id: 't9', mode: 'guide' })
+    const stopped = lessonReducer(started, { type: 'tutorStopped', id: 't9' })
+    expect(lessonReducer(stopped, { type: 'tutorFinished', id: 't9', meta: yes })).toBe(stopped)
+  })
+
   it('lessonRestarted keeps the plan and starts fresh', () => {
     const state = lessonReducer(tutorTurn(answered(), 'guide', yes), {
       type: 'lessonRestarted',

@@ -93,6 +93,15 @@ it('streams delta events, then meta, then done', async () => {
   deltas.forEach((text) => expect(text).not.toContain('<<<'))
 })
 
+it('sends MODEL_BUSY instead of done when Gemini answers with no visible text', async () => {
+  await start(async function* () {
+    yield '  \n<<<META>>>\n{"understanding":"none","passageIds":[]}'
+  })
+  const events = parseSse(await (await post()).text())
+  expect(events.map((e) => e.event)).toEqual(['error'])
+  expect(events[0].data.code).toBe('MODEL_BUSY')
+})
+
 it('sends done without meta when the block is missing', async () => {
   await start(async function* () {
     yield 'Bonjour ! '

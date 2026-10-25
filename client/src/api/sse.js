@@ -69,6 +69,5 @@ export async function readSseResponse(response, { onDelta, onMeta }) {
   } finally {
     reader.cancel().catch(() => {})
   }
-  if (failure) throw failure
   if (!finished) throw new ApiError('NETWORK', 'The connection dropped before the answer finished.')
 }

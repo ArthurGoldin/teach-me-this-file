@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import Markdown from './Markdown.jsx'
 import { messageFor } from './errorMessages.js'
 import { sourceLabel } from './lessonFormat.js'
@@ -19,12 +20,19 @@ function TypingDots() {
 
 const ACTION_LABELS = { retry: 'Try again', settings: 'Open settings' }
 
-// Why a turn failed, with the one action that fixes it. Only the latest message offers it:
+// Why a turn failed, with the action that fixes it (a key problem also offers Try again, for
+// after the key is fixed). Only the latest message offers actions:
 // an older failure has already been followed by something else (e.g. its retry).
 // The alert text is fixed (computed from the original wait), so screen readers hear it once;
 // the per-second countdown lives only on the button, outside the alert.
+// Focus moves to the button when the note appears; it is aria-disabled (not disabled) during a
+// rate-limit wait, so it can still take that focus.
 function FailedNote({ error, canAct, onRetry, onOpenSettings }) {
   const left = useSecondsLeft(error)
+  const buttonRef = useRef(null)
+  useEffect(() => {
+    if (canAct) buttonRef.current?.focus()
+  }, [canAct])
   const { text, action } = canAct
     ? messageFor(error.code, error)
     : { text: "This answer didn't arrive.", action: null }
@@ -32,18 +40,35 @@ function FailedNote({ error, canAct, onRetry, onOpenSettings }) {
   const waiting = action === 'retry' && left > 0
   const waited = action === 'retry' && error.retryAfterSeconds > 0 && left === 0
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
-      <p role="alert" dir="auto" className="text-slate/80">
+    // English app chrome: left to right even inside an RTL lesson's bubble. Only the latest
+    // failure is an alert; an older one changing to "didn't arrive" must not be announced again.
+    <div dir="ltr" className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+      <p role={canAct ? 'alert' : undefined} className="text-slate/80">
         {waited ? 'You can try again now.' : text}
       </p>
       {canAct && label && (
         <button
+          ref={buttonRef}
           type="button"
-          disabled={waiting}
-          onClick={action === 'retry' ? onRetry : onOpenSettings}
-          className="rounded-lg border border-teal px-3 py-1.5 font-medium text-teal hover:bg-teal hover:text-white disabled:cursor-not-allowed disabled:border-slate/20 disabled:text-slate/50 disabled:hover:bg-transparent"
+          aria-disabled={waiting}
+          onClick={() => {
+            if (waiting) return
+            if (action === 'retry') onRetry()
+            else onOpenSettings()
+          }}
+          className="rounded-lg border border-teal px-3 py-1.5 font-medium text-teal hover:bg-teal hover:text-white aria-disabled:cursor-not-allowed aria-disabled:border-slate/20 aria-disabled:text-slate/50 aria-disabled:hover:bg-transparent"
         >
           {waiting ? `Try again in ${left} s` : label}
+        </button>
+      )}
+      {/* After fixing the key in settings, the same turn can be run again. */}
+      {canAct && action === 'settings' && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="rounded-lg px-3 py-1.5 font-medium text-teal hover:bg-white"
+        >
+          Try again
         </button>
       )}
     </div>

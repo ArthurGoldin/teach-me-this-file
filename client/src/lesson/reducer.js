@@ -148,8 +148,9 @@ export function lessonReducer(state, action) {
       return updateMessage(state, action.id, (message) => ({ text: message.text + action.text }))
     case 'tutorFinished': {
       const message = state.messages.find(({ id }) => id === action.id)
-      // A late event for a message that is gone (e.g. after a restart) changes nothing.
-      if (!message) return state
+      // A late event for a message that is gone (e.g. after a restart) or no longer streaming
+      // (e.g. a duplicate after Stop) changes nothing.
+      if (message?.state !== 'streaming') return state
       const finished = updateMessage(state, action.id, () => ({
         state: 'done',
         passageIds: action.meta?.passageIds ?? [],

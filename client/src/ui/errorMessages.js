@@ -41,7 +41,7 @@ export function messageFor(code, { retryAfterSeconds, fileType, reloadNeeded } =
     case 'MODEL_BUSY':
       return { text: 'Gemini is busy right now. Try again in a moment.', action: 'retry' }
     case 'BLOCKED':
-      return { text: 'Gemini declined to answer this. Try rephrasing the prompt.', action: null }
+      return { text: 'Gemini declined to answer this. Try rephrasing.', action: null }
     case 'NETWORK':
       return { text: 'Connection lost. Check your connection and try again.', action: 'retry' }
     case 'PAYLOAD_TOO_LARGE':

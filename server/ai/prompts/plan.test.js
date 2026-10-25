@@ -94,6 +94,13 @@ describe('buildPlanRequest', () => {
     expect(systemInstruction).toContain('connects the ideas')
   })
 
+  it('asks for check questions the tutor can teach, because the student never reads the file', () => {
+    const { systemInstruction } = buildPlanRequest(makeInput())
+    expect(systemInstruction).toContain(
+      'The student will not read the document; the tutor teaches it, so check questions must be answerable from what the tutor teaches in that step',
+    )
+  })
+
   it('sends every passage, formatted, in the user turn', () => {
     const { contents } = buildPlanRequest(makeInput())
     expect(contents).toHaveLength(1)

@@ -146,6 +146,14 @@ A running log of the choices behind "Teach Me This File": what I chose, what I r
 - **Rejected:** shrinking tables to fit (unreadable one-word-per-line cells); a full-screen table viewer.
 - **Why:** school material is full of tables and formulas; they must read correctly in English, Hebrew and Arabic lessons. Formulas stay left to right inside right-to-left text (`.katex { direction: ltr }`).
 
+### D22. Teach before asking
+
+- **Wrong before:** the tutor prompt told the model to open each step with a question and, on "just tell me", to give "more scaffolding (a smaller question, a hint, an example)". With a "Be Socratic" teacher prompt, Gemini 3.5 Flash-Lite became a quiz master: it asked the student about content they had never seen ("Where do you think that water goes?"), because the student never reads the file.
+- **Chose:** the prompt now says the student has not read the document and knows only what the tutor teaches. Introduce teaches the step's key idea in 2–4 sentences from the passages with one example or analogy, then asks one question about it. A wrong answer gets a short re-explanation from a new angle plus one hint, without the check answer. "Just tell me" gets a clear explanation of the current idea and one easy question, never a whole-document summary. The default style "guided questioning" is defined as "explain briefly, then ask", and Socratic means questions built on what was taught. Messages are about 60–120 words. The plan prompt also says check questions must be answerable from what the tutor teaches in that step. Reducer, modes, the META block and the `[app]` channel are unchanged.
+- **Rejected:** keeping pure Socratic questioning. It works when the learner has the material in front of them; here the student never sees the file, so questions alone cannot teach it.
+- **Checked:** a scratch script ran the real model on the tutor fixture (introduce in English, introduce in French with "Be Socratic", a wrong answer, "just tell me"), comparing three wordings over several runs. Introduce now teaches from the passages before its one question in every run.
+- **Weakness:** when a check question only asks the student to recall what introduce just taught, a re-explanation sometimes repeats the answer. Better check questions (apply the idea, not repeat it) would help; that is a plan-prompt change for later.
+
 ## What I decided not to do (and why)
 
 - Shareable links / multi-device lessons (D1).

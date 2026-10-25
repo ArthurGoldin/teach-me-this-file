@@ -47,7 +47,7 @@ Rules:
 4. Each step teaches exactly one idea, in an order that builds understanding. If the document has a central idea (what the whole document is about), step 1 introduces only that idea, before any detail. If the document shows how its ideas fit together, the very last step connects the ideas taught before it. Never put two concepts in one step: split them into two steps or leave the lesser one out. For each step give:
    - "title": a short name that names exactly one concept; never two concepts joined by a conjunction or a comma, in any language;
    - "objective": what the student will be able to explain or do after the step;
-   - "checkQuestion": a single question in one clause, with exactly one question mark, that tests the objective and can be answered from the step's passages alone (not a yes/no question);
+   - "checkQuestion": a single question in one clause, with exactly one question mark, that tests the objective and can be answered from the step's passages alone (not a yes/no question). The student will not read the document; the tutor teaches it, so check questions must be answerable from what the tutor teaches in that step;
    - "passageIds": the ids of the passages the step is built from, copied exactly from the <passage id="..."> tags (at least one).
 5. Write the lesson "title" and every step title, objective and check question in the lesson language, whatever language the document uses. Keep every text field under 300 characters.
 6. Use only what the document says; do not plan steps about topics it does not cover. If the teacher asks for only part of the document (for example one chapter), use only the passages from that part.

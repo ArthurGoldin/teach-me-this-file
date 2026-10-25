@@ -138,6 +138,54 @@ describe('buildTutorRequest', () => {
     expect(systemInstruction).toContain('only explain mode and a last attempt (see the mode below)')
   })
 
+  it('tells the tutor the student has not read the document, so it teaches before asking', () => {
+    const { systemInstruction } = buildTutorRequest(makeInput())
+    expect(systemInstruction).toContain(
+      'The student has not read the document and knows only what you teach them.',
+    )
+    expect(systemInstruction).toContain(
+      'Each message teaches one small piece: explain it, then ask.',
+    )
+    expect(systemInstruction).toContain(
+      'A question may only ask about what you have taught in this conversation',
+    )
+  })
+
+  it('teaches the key idea in introduce mode before one question about it', () => {
+    expect(MODE_INSTRUCTIONS.introduce).toContain(
+      "teach the step's key idea in 2 to 4 short sentences taken from the passages",
+    )
+    expect(MODE_INSTRUCTIONS.introduce).toContain('one concrete example or analogy')
+    expect(MODE_INSTRUCTIONS.introduce).toContain(
+      'never ask about something you have not taught yet',
+    )
+  })
+
+  it('re-explains on a wrong answer without giving the check answer', () => {
+    expect(MODE_INSTRUCTIONS.guide).toContain(
+      're-explain the idea itself from a new angle or with a different example',
+    )
+    expect(MODE_INSTRUCTIONS.guide).toContain('without stating the answer to the check question')
+    const { systemInstruction } = buildTutorRequest(makeInput())
+    expect(systemInstruction).toContain(
+      'Re-explaining the idea is allowed; stating the answer to the check question is not.',
+    )
+  })
+
+  it('explains the current idea on "just tell me", without summarising the document', () => {
+    const { systemInstruction } = buildTutorRequest(makeInput())
+    expect(systemInstruction).toContain('explain the current small idea clearly')
+    expect(systemInstruction).toContain('no summary of the whole document')
+  })
+
+  it('defines Socratic and the default style as teaching, not quizzing', () => {
+    const { systemInstruction } = buildTutorRequest(makeInput())
+    expect(systemInstruction).toContain('"guided questioning" means guided teaching')
+    expect(systemInstruction).toContain(
+      'a Socratic question never depends on information the student has not been given',
+    )
+  })
+
   it('confirms a right answer without asking a question or previewing the next step', () => {
     expect(MODE_INSTRUCTIONS.guide).toContain('confirm it and say why in 1 or 2 sentences')
     expect(MODE_INSTRUCTIONS.guide).toContain(
